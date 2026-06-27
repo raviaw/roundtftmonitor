@@ -1,0 +1,11 @@
+# build artifacts (regenerable)
+firmware/**/build/
+
+# os cruft
+Thumbs.db
+.DS_Store
+
+# unrelated items present in this folder
+docker/
+start-docker-container.cmd
+
