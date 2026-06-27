@@ -143,8 +143,8 @@ void drawBar(int y, float frac, float hours) {       // inside the center sprite
   String t = "";
   int tw = 0;
   if (hours >= 0) {
-    t = (hours >= 48) ? String((int)round(hours / 24.0)) + "d"
-                      : String((int)round(hours)) + "h";
+    t = ((hours >= 48) ? String((int)round(hours / 24.0)) + "d"
+                       : String((int)round(hours)) + "h") + " left";
     center.setFont(&fonts::Font0);
     tw = center.textWidth(t);
   }
