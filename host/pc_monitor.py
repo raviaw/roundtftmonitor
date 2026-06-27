@@ -36,19 +36,29 @@ USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 USAGE_REFRESH = 300.0   # seconds; query Claude limits once every 5 minutes
 SESSION_PERIOD = 5 * 3600        # 5-hour rolling window
 WEEK_PERIOD = 7 * 24 * 3600      # nominal 7-day window (tune if it resets sooner)
-_usage = {"sess": None, "week": None, "sessp": None, "weekp": None, "ts": 0.0}
+_usage = {"sess": None, "week": None, "sessp": None, "weekp": None,
+          "sessh": None, "weekh": None, "ts": 0.0}
 
 
-def _period_progress(resets_at, period_sec):
-    """Fraction (0..100) of the window already elapsed: 100 = about to reset."""
+def _remaining_seconds(resets_at):
     if not resets_at:
         return None
     try:
         reset = datetime.fromisoformat(resets_at)
-        remaining = (reset - datetime.now(timezone.utc)).total_seconds()
-        return max(0.0, min(100.0, (1.0 - remaining / period_sec) * 100.0))
+        return max(0.0, (reset - datetime.now(timezone.utc)).total_seconds())
     except Exception:
         return None
+
+
+def _period_progress(resets_at, period_sec):
+    """Fraction (0..100) of the window already elapsed: 100 = about to reset."""
+    rem = _remaining_seconds(resets_at)
+    return None if rem is None else max(0.0, min(100.0, (1.0 - rem / period_sec) * 100.0))
+
+
+def _hours_left(resets_at):
+    rem = _remaining_seconds(resets_at)
+    return None if rem is None else rem / 3600.0
 
 
 def find_port() -> str | None:
@@ -93,6 +103,8 @@ def get_claude_usage() -> dict:
         _usage["week"]  = sd.get("utilization")
         _usage["sessp"] = _period_progress(fh.get("resets_at"), SESSION_PERIOD)
         _usage["weekp"] = _period_progress(sd.get("resets_at"), WEEK_PERIOD)
+        _usage["sessh"] = _hours_left(fh.get("resets_at"))
+        _usage["weekh"] = _hours_left(sd.get("resets_at"))
     except Exception as e:
         print(f"usage fetch failed: {e}", flush=True)  # keep last known values
     _usage["ts"] = now
@@ -104,7 +116,7 @@ def build_line() -> str:
     ram = psutil.virtual_memory().percent
     parts = [f"cpu={cpu:.1f}", f"ram={ram:.1f}"]
     u = get_claude_usage()
-    for key in ("sess", "week", "sessp", "weekp"):
+    for key in ("sess", "week", "sessp", "weekp", "sessh", "weekh"):
         if u[key] is not None:
             parts.append(f"{key}={u[key]:.1f}")
     return " ".join(parts) + "\n"

@@ -46,3 +46,8 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
 - ESP32-C3 USB-Serial-JTAG resets re-enumerate the port, so a captured serial
   handle dies on reset — reopen after flashing/reset.
 - Driver chip names (GC9A01/CST816) are compiled register writes, not flash strings.
+- **Do not full-screen double-buffer** (a 240×240 `LGFX_Sprite` + `pushSprite`):
+  it compiled and `createSprite` succeeded but the panel stayed **blank**. Working
+  path = draw rings directly to `tft` + a small 104×104 center sprite for text.
+  To avoid the zero-tick flickering, put it in the **gap between rings** (r 91–95)
+  where ring fills never repaint it — not on top of a ring.
