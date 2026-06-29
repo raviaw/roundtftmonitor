@@ -65,7 +65,9 @@ python host/pc_monitor.py        # auto-detects the board's COM port
 ```
 
 CPU%/RAM% come from plain perf counters (no driver, no admin) and update every
-second; Claude usage is polled every 5 minutes. See [`host/README.md`](host/README.md).
+second; Claude usage is polled every 5 minutes. To start it automatically at logon,
+run `host/install-startup.ps1` once. See [`host/README.md`](host/README.md) for
+autostart management and cable/port troubleshooting.
 
 ## Claude usage
 
