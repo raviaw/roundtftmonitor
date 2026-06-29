@@ -26,6 +26,18 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
 - Python is `C:\Python314`; pip installs to **`E:\dev\pip`** (custom target) — run
   scripts with `PYTHONPATH=E:\dev\pip`. Launch via `host\run-monitor.bat`.
 
+## Autostart (Task Scheduler)
+- Install: `powershell -ExecutionPolicy Bypass -File host\install-startup.ps1` registers a
+  per-user task **`RoundTFT Monitor`** that runs at logon, hidden, and restarts on crash.
+- Chain: task → `wscript host\monitor-launch.vbs` (window style 0) → `host\run-monitor-hidden.bat`
+  → `pythonw.exe pc_monitor.py`. Logs to `%LOCALAPPDATA%\roundtft-monitor.log`.
+- `run-monitor-hidden.bat` hardcodes `C:\Python314\pythonw.exe` + `PYTHONPATH=E:\dev\pip`
+  (Task Scheduler can't inherit shell env) — edit it if those paths change.
+- Task uses **no execution time limit** (default 3-day limit would kill the forever-loop) and
+  triggers at the interactive logon (needs the user session for COM + `.credentials.json`).
+- **Before flashing:** `Stop-ScheduledTask -TaskName 'RoundTFT Monitor'` (it holds COM5);
+  resume with `Start-ScheduledTask`. Remove with `host\uninstall-startup.ps1`.
+
 ## Claude usage (session/week %)
 - No official API. Read it from the **undocumented** `GET https://api.anthropic.com/api/oauth/usage`
   (NOT claude.ai — that 403s). Headers: `Authorization: Bearer <token>`,
