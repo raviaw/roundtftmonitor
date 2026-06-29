@@ -19,8 +19,13 @@ set PYTHONPATH=E:\dev\pip
 python pc_monitor.py
 ```
 
-Leave it running; the board shows "WAITING FOR PC" until lines arrive, then the
-gauges track CPU/RAM. Stop with Ctrl+C. It auto-reconnects if the board resets.
+Leave it running; the board shows "WAITING FOR DATA" until lines arrive, then the
+gauges track CPU/RAM. If the stream stops, the board holds the last values for up
+to 10 s before showing "WAITING FOR DATA" again. Stop with Ctrl+C; it
+auto-reconnects if the board resets.
+
+When run from a console the agent prints each line live; under the autostart task
+(no console) it only logs connect/error events, so the logfile stays small.
 
 ## Cost on the PC
 One Python process polling perf counters once/second — negligible CPU, ~20 MB RAM,
@@ -32,8 +37,8 @@ Run once from any PowerShell (no admin needed):
 ```
 powershell -ExecutionPolicy Bypass -File install-startup.ps1
 ```
-This registers a hidden scheduled task **`RoundTFT Monitor`** that launches the
-agent at every logon and restarts it if it crashes. Output goes to
+This registers a scheduled task **`RoundTFT Monitor`** that runs `pythonw.exe`
+(no window) at every logon and restarts it if it crashes. Output goes to
 `%LOCALAPPDATA%\roundtft-monitor.log`.
 
 | Do this | Command |
@@ -42,13 +47,15 @@ agent at every logon and restarts it if it crashes. Output goes to
 | Start it again | `Start-ScheduledTask -TaskName 'RoundTFT Monitor'` |
 | Remove autostart | `powershell -ExecutionPolicy Bypass -File uninstall-startup.ps1` |
 
-The launcher hardcodes `C:\Python314\pythonw.exe` and `PYTHONPATH=E:\dev\pip`
-(a scheduled task can't inherit your shell's env) — edit `run-monitor-hidden.bat`
-if those paths change.
+The task launches `pythonw.exe` **directly** (so `Stop-ScheduledTask` reliably
+terminates it — a wrapper chain would leave an unkillable child). The Python path
+`C:\Python314\pythonw.exe` is set in `install-startup.ps1`; the package dir
+defaults to `E:\dev\pip` in `pc_monitor.py` (override with the `ROUNDTFT_PIP` env
+var). Edit those if your paths differ.
 
 ## Troubleshooting
 
-**Board / display shows "WAITING FOR PC" and the agent logs `board not found
+**Board / display shows "WAITING FOR DATA" and the agent logs `board not found
 (303A:1001); retrying...`** — Windows isn't seeing the device.
 
 1. **Use a real USB *data* cable, not a charge-only one.** This is the most common

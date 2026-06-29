@@ -49,7 +49,7 @@ static const float START_DEG = 0.0f;
 static const int TP_SDA = 4, TP_SCL = 5, TP_INT = 0, TP_RST = 1;
 static const uint8_t CST816_ADDR = 0x15;
 static const uint32_t LONG_MS = 600;
-uint8_t rotation = 0, page = 0;
+uint8_t rotation = 3, page = 0;   // default = three long-presses (270 deg) from 0
 bool tpWasDown = false, tpFired = false;
 uint32_t tpPressStart = 0;
 
@@ -172,8 +172,8 @@ void drawCenter(bool waiting,
   if (waiting) {
     center.setFont(&fonts::Font2);
     center.setTextColor(tft.color565(120, 120, 120), TFT_BLACK);
-    center.drawString("WAITING", w, w - 9);
-    center.drawString("FOR PC",  w, w + 9);
+    center.drawString("WAITING",  w, w - 9);
+    center.drawString("FOR DATA", w, w + 9);
   } else {
     center.setFont(&fonts::Font2); center.setTextColor(label, TFT_BLACK);
     center.drawString(l1, w, 14);
@@ -203,7 +203,9 @@ void setup() {
 void loop() {
   readSerial();
   handleTouch();
-  bool waiting = !everConnected || (millis() - lastData > 3000);
+  // Hold the last received values for up to 10s across a gap (unsigned subtraction
+  // is millis()-rollover safe), then fall back to the waiting screen.
+  bool waiting = !everConnected || (millis() - lastData > 10000);
 
   float k = 0.18f;
   cpuDisp  += ((waiting ? 0 : cpuTarget)  - cpuDisp)  * k;

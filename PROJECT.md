@@ -74,7 +74,8 @@ identified by the center labels (CPU/RAM vs SESS/WEEK).
 - **Page 1 (Claude):** thick outer = Session (5h)%, thick inner = Week (7d)%,
   center `SESS%/WEEK%`. Two **thin** outer rings hint CPU/RAM.
 Colors: green <60, amber 60-85, red >85 (so a near-full red ring = near a limit).
-Claude values show `--` if unavailable. "WAITING FOR PC" if no serial.
+Claude values show `--` if unavailable. The last values are held across a gap for
+up to 10 s; after that the board shows "WAITING FOR DATA".
 
 ## Claude usage source
 Host reads the OAuth token from `~/.claude/.credentials.json` and GETs the
@@ -91,8 +92,9 @@ endpoint may break without notice. CPU%/RAM% still update every 1 s.
   `firmware/monitor/monitor.ino`.
 
 ## Day-to-day use
-Run `host/run-monitor.bat` (auto-detects the port). For auto-start, drop a
-shortcut to it in `shell:startup`. Board keeps the gauges as long as the agent runs.
+Run `host/run-monitor.bat` (auto-detects the port). For auto-start at logon, run
+`host/install-startup.ps1` once (hidden scheduled task). Board keeps the gauges as
+long as the agent runs.
 
 ## Serial protocol (host -> board)
 One line per update, `\n`-terminated, space-separated `key=value` pairs, e.g.:
@@ -101,5 +103,5 @@ cpu=37.5 ram=61.2
 ```
 Firmware updates known keys and ignores unknown ones, so adding a metric later
 (e.g. `claude=...`) needs only a new field on the host + a widget on the board.
-Baud 115200 on COM5 (USB-CDC). If no line arrives for ~3 s the board shows
-"WAITING FOR PC".
+Baud 115200 on COM5 (USB-CDC). The board holds the last values across a gap for
+up to 10 s; if no line arrives for longer it shows "WAITING FOR DATA".

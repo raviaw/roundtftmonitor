@@ -29,10 +29,12 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
 ## Autostart (Task Scheduler)
 - Install: `powershell -ExecutionPolicy Bypass -File host\install-startup.ps1` registers a
   per-user task **`RoundTFT Monitor`** that runs at logon, hidden, and restarts on crash.
-- Chain: task → `wscript host\monitor-launch.vbs` (window style 0) → `host\run-monitor-hidden.bat`
-  → `pythonw.exe pc_monitor.py`. Logs to `%LOCALAPPDATA%\roundtft-monitor.log`.
-- `run-monitor-hidden.bat` hardcodes `C:\Python314\pythonw.exe` + `PYTHONPATH=E:\dev\pip`
-  (Task Scheduler can't inherit shell env) — edit it if those paths change.
+- Task action runs **`C:\Python314\pythonw.exe pc_monitor.py` directly** (no wrapper) so
+  `Stop-ScheduledTask` actually kills it — a `wscript→cmd→pythonw` chain leaves an
+  unkillable grandchild. pythonw = no window; logs to `%LOCALAPPDATA%\roundtft-monitor.log`.
+- No shell env, so `pc_monitor.py` self-bootstraps: adds `E:\dev\pip` to `sys.path`
+  (override `ROUNDTFT_PIP`) and, when not a TTY, opens that logfile itself. Per-second
+  data line is suppressed off-console (only connect/error events logged).
 - Task uses **no execution time limit** (default 3-day limit would kill the forever-loop) and
   triggers at the interactive logon (needs the user session for COM + `.credentials.json`).
 - **Before flashing:** `Stop-ScheduledTask -TaskName 'RoundTFT Monitor'` (it holds COM5);

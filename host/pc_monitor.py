@@ -21,6 +21,13 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 
+# The autostart task launches pythonw.exe directly (no PYTHONPATH), so make the
+# custom pip target importable here (override with ROUNDTFT_PIP). No-op if the
+# packages are already importable / already on sys.path.
+_PIP = os.environ.get("ROUNDTFT_PIP", r"E:\dev\pip")
+if _PIP and os.path.isdir(_PIP) and _PIP not in sys.path:
+    sys.path.insert(0, _PIP)
+
 import psutil
 import serial
 from serial.tools import list_ports
@@ -29,6 +36,19 @@ ESP_VID = 0x303A
 ESP_PID = 0x1001
 BAUD = 115200
 INTERVAL = 1.0          # seconds between updates (also the CPU sample window)
+
+# Are we attached to a real console? Under the autostart task we run as pythonw.exe
+# with no console, so sys.stdout is None -> _TTY is False. In that case capture the
+# connect/error lines in a small logfile (the per-second data line stays suppressed
+# below, so it never grows unbounded). Interactive runs print live and write no file.
+_TTY = bool(getattr(sys.stdout, "isatty", lambda: False)())
+if not _TTY:
+    try:
+        _logdir = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        sys.stdout = sys.stderr = open(
+            os.path.join(_logdir, "roundtft-monitor.log"), "a", buffering=1, encoding="utf-8")
+    except Exception:
+        pass
 
 # --- Claude usage (undocumented endpoint; may change/break without notice) ---
 CRED_PATH = os.path.expanduser("~/.claude/.credentials.json")
@@ -140,7 +160,8 @@ def main() -> None:
 
             line = build_line()
             ser.write(line.encode("ascii"))
-            print(line.strip(), flush=True)
+            if _TTY:
+                print(line.strip(), flush=True)
         except (serial.SerialException, OSError) as e:
             print(f"serial error: {e}; reconnecting...", flush=True)
             try:

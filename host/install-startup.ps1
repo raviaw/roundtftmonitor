@@ -5,12 +5,17 @@
 $ErrorActionPreference = 'Stop'
 
 $TaskName = 'RoundTFT Monitor'
-$vbs      = Join-Path $PSScriptRoot 'monitor-launch.vbs'
-if (-not (Test-Path $vbs)) { throw "Missing $vbs" }
+$pyw      = 'C:\Python314\pythonw.exe'      # windowless Python (no console)
+$script   = Join-Path $PSScriptRoot 'pc_monitor.py'
+if (-not (Test-Path $pyw))    { throw "Missing $pyw" }
+if (-not (Test-Path $script)) { throw "Missing $script" }
 
-# wscript runs the .vbs, which launches the windowless .bat.
-$action = New-ScheduledTaskAction -Execute 'wscript.exe' `
-    -Argument ('"{0}"' -f $vbs)
+# Launch pythonw.exe DIRECTLY so the task owns the process -- this is what makes
+# Stop-ScheduledTask reliably terminate the monitor (a wrapper chain leaves an
+# unkillable grandchild). pythonw shows no window; the script self-bootstraps its
+# package path (ROUNDTFT_PIP) and logs to %LOCALAPPDATA%\roundtft-monitor.log.
+$action = New-ScheduledTaskAction -Execute $pyw `
+    -Argument ('"{0}"' -f $script) -WorkingDirectory $PSScriptRoot
 
 # Start at this user's logon.
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
