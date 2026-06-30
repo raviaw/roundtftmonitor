@@ -8,8 +8,9 @@
 // UI: short TAP cycles page (Page0 CPU/RAM, Page1 Session/Week + period bars,
 //     Page2 top-7 processes: diverging bars, memory left / CPU right, name in the
 //     middle, biggest-memory process centered then alternating below/above).
-//     LONG press (>0.6s) rotates 90 deg. White tick marks each gauge's 0/start
-//     (drawn in the gap between rings so it never flickers).
+//     Hold 0.6-1.5s then release rotates 90 deg; hold past 1.5s enters
+//     brightness mode -- drag up/down to set the backlight (saved to NVS).
+//     White tick marks each gauge's 0/start (in the ring gap, so it never flickers).
 //
 // Rendering: rings drawn directly; center text+bars via a small sprite. (Full-
 // screen double-buffering was tried and would not display on this panel.)
@@ -19,6 +20,7 @@
 
 #include <LovyanGFX.hpp>
 #include <Wire.h>
+#include <Preferences.h>
 
 class LGFX : public lgfx::LGFX_Device {
   lgfx::Panel_GC9A01 _panel; lgfx::Bus_SPI _bus;
@@ -53,10 +55,19 @@ static const float START_DEG = 0.0f;
 
 static const int TP_SDA = 4, TP_SCL = 5, TP_INT = 0, TP_RST = 1;
 static const uint8_t CST816_ADDR = 0x15;
-static const uint32_t LONG_MS = 600;
+static const uint32_t LONG_MS   = 600;    // release in 0.6-1.5s -> rotate
+static const uint32_t BRIGHT_MS = 1500;   // hold past this -> brightness mode
 uint8_t rotation = 3, page = 0;   // default = three long-presses (270 deg) from 0
-bool tpWasDown = false, tpFired = false;
+bool tpWasDown = false;
 uint32_t tpPressStart = 0;
+
+// Backlight (GPIO3) PWM brightness, persisted to NVS flash across reboots.
+Preferences prefs;
+const uint8_t BL_MIN = 12;        // never let it go fully dark
+uint8_t blLevel = 255;            // current duty 0..255
+bool brightMode = false;          // adjusting brightness (overlay shown)
+int baseY = 0; uint8_t baseLevel = 255;   // touch-Y and level at mode entry
+int lastShownLevel = -1;          // last level the overlay was drawn at (-1 = redraw)
 
 float cpuTarget=0, ramTarget=0, sessTarget=0, weekTarget=0;
 float cpuDisp=0,  ramDisp=0,  sessDisp=0,  weekDisp=0;
@@ -133,26 +144,61 @@ void touchReset() {
   digitalWrite(TP_RST, LOW);  delay(20);
   digitalWrite(TP_RST, HIGH); delay(120);
 }
-bool touchDown() {
+// Read the first touch point; returns whether a finger is down and, if so, the
+// "visual" vertical coordinate vy (0=top..239=bottom) for the current rotation.
+bool readTouchY(int& vy) {
   Wire.beginTransmission(CST816_ADDR); Wire.write(0x02);
   if (Wire.endTransmission(false) != 0) return false;
-  if (Wire.requestFrom((int)CST816_ADDR, 1) != 1) return false;
-  return (Wire.read() & 0x0F) > 0;
-}
-void handleTouch() {
-  bool down = touchDown();
-  if (down && !tpWasDown) { tpPressStart = millis(); tpFired = false; }
-  if (down && !tpFired && (millis() - tpPressStart) > LONG_MS) {
-    rotation = (rotation + 1) & 0x03;
-    tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
-    Serial.printf("rotate -> %d\n", rotation); tpFired = true;
+  if (Wire.requestFrom((int)CST816_ADDR, 5) != 5) return false;
+  uint8_t st = Wire.read();
+  uint8_t xh = Wire.read(), xl = Wire.read(), yh = Wire.read(), yl = Wire.read();
+  if ((st & 0x0F) == 0) return false;
+  int x = ((xh & 0x0F) << 8) | xl;
+  int y = ((yh & 0x0F) << 8) | yl;
+  switch (rotation & 0x03) {            // map raw panel axes to on-screen vertical
+    case 0:  vy = y;        break;
+    case 1:  vy = 239 - x;  break;
+    case 2:  vy = 239 - y;  break;
+    default: vy = x;        break;      // case 3
   }
-  if (!down && tpWasDown) {
-    if (!tpFired && (millis() - tpPressStart) < LONG_MS) {
+  return true;
+}
+
+void setBrightness(int lvl) {
+  if (lvl < BL_MIN) lvl = BL_MIN; if (lvl > 255) lvl = 255;
+  blLevel = (uint8_t)lvl; ledcWrite(PIN_BL, blLevel);
+}
+
+// Gestures: short tap (<0.6s) = next page; hold 0.6-1.5s then release = rotate;
+// hold past 1.5s = brightness mode -> drag up/down to adjust (overlay shown),
+// release saves the level to flash.
+void handleTouch() {
+  int vy = 0;
+  bool down = readTouchY(vy);
+  if (down && !tpWasDown) { tpPressStart = millis(); brightMode = false; }
+  uint32_t held = millis() - tpPressStart;
+
+  if (down && !brightMode && held > BRIGHT_MS) {     // enter brightness mode
+    brightMode = true; baseY = vy; baseLevel = blLevel; lastShownLevel = -1;
+  }
+  if (down && brightMode) {                          // up = brighter (~1.5/px)
+    setBrightness((int)baseLevel + (baseY - vy) * 3 / 2);
+  }
+
+  if (!down && tpWasDown) {                           // released
+    if (brightMode) {
+      prefs.putUChar("bl", blLevel);                 // persist chosen level
+      brightMode = false; tft.fillScreen(TFT_BLACK);
+      Serial.printf("brightness -> %u\n", blLevel);
+    } else if (held < LONG_MS) {
       page = (page + 1) % 3; tft.fillScreen(TFT_BLACK);
       Serial.printf("page -> %d\n", page);
+    } else {
+      rotation = (rotation + 1) & 0x03;
+      tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
+      prefs.putUChar("rot", rotation);               // persist orientation
+      Serial.printf("rotate -> %d\n", rotation);
     }
-    tpFired = false;
   }
   tpWasDown = down;
 }
@@ -300,9 +346,34 @@ void drawChart(bool waiting) {
   chart.pushSprite(CX - W / 2, CY - H / 2);
 }
 
+// Brightness overlay: a vertical level bar drawn on top of whatever page is
+// showing (the screen underneath is left in place). Fill height + the % follow
+// the backlight level as you drag.
+void drawBrightnessOverlay() {
+  int pct = (blLevel * 100 + 127) / 255;
+  const int bw = 34, bh = 140;
+  const int bx = CX - bw / 2, by = CY - bh / 2;
+  tft.fillRoundRect(bx, by, bw, bh, 8, tft.color565(45, 45, 52));            // track
+  int fh = bh * pct / 100; if (fh < 2) fh = 2; if (fh > bh) fh = bh;
+  tft.fillRoundRect(bx, by + (bh - fh), bw, fh, 8, tft.color565(255, 200, 70)); // fill
+  tft.drawRoundRect(bx, by, bw, bh, 8, tft.color565(140, 140, 150));          // outline
+  tft.setFont(&fonts::Font2); tft.setTextDatum(middle_center);   // fits inside the bar
+  String s = String(pct) + "%";
+  tft.setTextColor(tft.color565(0, 0, 0));                                    // dark halo
+  tft.drawString(s, CX - 1, CY); tft.drawString(s, CX + 1, CY);
+  tft.drawString(s, CX, CY - 1); tft.drawString(s, CX, CY + 1);
+  tft.setTextColor(TFT_WHITE);
+  tft.drawString(s, CX, CY);
+}
+
 void setup() {
   Serial.begin(115200);
-  pinMode(PIN_BL, OUTPUT); digitalWrite(PIN_BL, HIGH);
+  prefs.begin("roundtft", false);                  // NVS namespace for settings
+  blLevel = prefs.getUChar("bl", 255);             // restore saved brightness
+  if (blLevel < BL_MIN) blLevel = BL_MIN;
+  rotation = prefs.getUChar("rot", rotation) & 0x03;   // restore saved orientation
+  ledcAttach(PIN_BL, 5000, 8);                      // 5 kHz, 8-bit PWM on GPIO3
+  ledcWrite(PIN_BL, blLevel);
   tft.init(); tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
   Wire.begin(TP_SDA, TP_SCL); Wire.setClock(100000); touchReset();
   center.setColorDepth(16); center.createSprite(104, 104);
@@ -326,6 +397,13 @@ void loop() {
   static uint32_t lastFrame = 0;
   if (millis() - lastFrame < 33) return;
   lastFrame = millis();
+
+  // Brightness mode is modal: freeze the page (the panel keeps the last frame)
+  // and redraw the overlay only when the level changes -> no per-frame flicker.
+  if (brightMode) {
+    if (blLevel != lastShownLevel) { drawBrightnessOverlay(); lastShownLevel = blLevel; }
+    return;
+  }
 
   bool sOk = sessHave && !waiting, wOk = weekHave && !waiting, pOk = !waiting;
   if (page == 0) {
