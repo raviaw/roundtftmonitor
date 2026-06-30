@@ -198,13 +198,12 @@ def get_claude_usage() -> dict:
 
 
 def _san(name: str) -> str:
-    """Trim a process name to something the 104px display can show: drop the
-    .exe, strip the field delimiters (':' '|') and any non-printable bytes,
-    cap at 7 chars."""
+    """Trim a process name for the display: drop the .exe, strip the field
+    delimiters (':' '|') and any non-printable bytes, cap at 12 chars."""
     if name.lower().endswith(".exe"):
         name = name[:-4]
     name = "".join(c for c in name if 32 < ord(c) < 127 and c not in ":|")
-    return name[:7] or "?"
+    return name[:12] or "?"
 
 
 _TOTAL_RAM = psutil.virtual_memory().total

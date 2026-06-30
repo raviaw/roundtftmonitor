@@ -79,7 +79,7 @@ String inbuf;
 
 // Top-7 processes for Page2 (filled by the "proc=" line; held until replaced).
 static const int PROC_MAX = 7;
-char  procName[PROC_MAX][12];
+char  procName[PROC_MAX][16];     // up to 12-char names + NUL
 float procMem[PROC_MAX], procCpu[PROC_MAX];
 int   procCount = 0;
 
@@ -135,7 +135,7 @@ void readSerial() {
   while (Serial.available()) {
     char c = Serial.read();
     if (c == '\n') { if (inbuf.length()) parseLine(inbuf); inbuf = ""; }
-    else if (c != '\r') { inbuf += c; if (inbuf.length() > 200) inbuf = ""; }
+    else if (c != '\r') { inbuf += c; if (inbuf.length() > 300) inbuf = ""; }
   }
 }
 
@@ -318,9 +318,17 @@ void drawChart(bool waiting) {
 
   chart.drawFastVLine(midX, 0, H, tft.color565(15, 15, 20));     // central spine
 
-  // memory GB (2 decimals) at the left edge, CPU % at the right edge; the wide
-  // GB label may overlap the bar, which is fine -- it stays readable over it.
+  // GB at the left, CPU % at the right; measure the widest GB label so the
+  // names form a clean column behind a thin yellow divider.
   chart.setFont(&fonts::Font0);
+  int memW = 0;
+  for (int i = 0; i < procCount; i++) {
+    int w = chart.textWidth(String(procMem[i], 2) + "GB");
+    if (w > memW) memW = w;
+  }
+  const int lineX = 1 + memW + 3;          // yellow divider just past the GB column
+  const int nameX = lineX + 4;             // names start here (fixed column)
+
   chart.setTextColor(tft.color565(215, 220, 226));
   for (int i = 0; i < procCount; i++) {
     chart.setTextDatum(middle_left);
@@ -329,18 +337,20 @@ void drawChart(bool waiting) {
     chart.drawString(String((int)round(procCpu[i])) + "%", W - 1, ys[i]);
   }
 
-  // names float over the spine; a 1px dark halo keeps them legible over the bars
+  chart.drawFastVLine(lineX, 0, H, tft.color565(255, 215, 0));   // thin yellow border
+
+  // names: left-aligned in a fixed column; 1px dark halo for legibility on bars
   chart.setFont(&fonts::Font2);
-  chart.setTextDatum(middle_center);
+  chart.setTextDatum(middle_left);
   for (int i = 0; i < procCount; i++) {
     chart.setTextColor(tft.color565(0, 0, 0));
-    chart.drawString(procName[i], midX - 1, ys[i]);
-    chart.drawString(procName[i], midX + 1, ys[i]);
-    chart.drawString(procName[i], midX, ys[i] - 1);
-    chart.drawString(procName[i], midX, ys[i] + 1);
+    chart.drawString(procName[i], nameX - 1, ys[i]);
+    chart.drawString(procName[i], nameX + 1, ys[i]);
+    chart.drawString(procName[i], nameX, ys[i] - 1);
+    chart.drawString(procName[i], nameX, ys[i] + 1);
     chart.setTextColor(i == 0 ? tft.color565(255, 255, 255)
                               : tft.color565(205, 212, 218));
-    chart.drawString(procName[i], midX, ys[i]);
+    chart.drawString(procName[i], nameX, ys[i]);
   }
 
   chart.pushSprite(CX - W / 2, CY - H / 2);
