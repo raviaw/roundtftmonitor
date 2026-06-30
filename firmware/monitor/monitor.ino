@@ -3,8 +3,11 @@
 //   cpu=37.5 ram=61.2 sess=26 week=56 sessp=44 weekp=99 sessh=2.8 weekh=8
 //   cpu/ram=PC%, sess/week=Claude session/week %, sessp/weekp=period elapsed %,
 //   sessh/weekh=hours left in each window. Unknown keys ignored.
+//   proc=name:memGB:cpu%|name:memGB:cpu%|...  top-7 processes by memory (own line).
 //
-// UI: short TAP toggles page (Page0 CPU/RAM, Page1 Session/Week + period bars).
+// UI: short TAP cycles page (Page0 CPU/RAM, Page1 Session/Week + period bars,
+//     Page2 top-7 processes: diverging bars, memory left / CPU right, name in the
+//     middle, biggest-memory process centered then alternating below/above).
 //     LONG press (>0.6s) rotates 90 deg. White tick marks each gauge's 0/start
 //     (drawn in the gap between rings so it never flickers).
 //
@@ -34,7 +37,9 @@ public:
 };
 
 LGFX tft;
-static LGFX_Sprite center(&tft);      // small canvas for the center readout
+static LGFX_Sprite center(&tft);      // small canvas for the center readout (pages 0/1)
+static LGFX_Sprite chart(&tft);       // larger canvas for the process bars (page 2)
+static const int CHART_SZ = 154;      // fits inside the thin rings (corner r ~109 < 113)
 
 static const int PIN_BL = 3;
 static const int CX = 120, CY = 120;
@@ -61,6 +66,12 @@ uint32_t lastData = 0;
 bool everConnected = false;
 String inbuf;
 
+// Top-7 processes for Page2 (filled by the "proc=" line; held until replaced).
+static const int PROC_MAX = 7;
+char  procName[PROC_MAX][12];
+float procMem[PROC_MAX], procCpu[PROC_MAX];
+int   procCount = 0;
+
 uint16_t zoneColor(float v) {
   if (v < 60) return tft.color565(0, 200, 90);
   if (v < 85) return tft.color565(255, 170, 0);
@@ -68,7 +79,27 @@ uint16_t zoneColor(float v) {
 }
 static const uint16_t GRAY = 0x528A;
 
+// "name:mem:cpu|name:mem:cpu|..." -> the proc* arrays (already past "proc=").
+void parseProc(const String& s) {
+  int n = 0, i = 0;
+  while (i < (int)s.length() && n < PROC_MAX) {
+    int bar = s.indexOf('|', i); if (bar < 0) bar = s.length();
+    String item = s.substring(i, bar);
+    int c1 = item.indexOf(':'); int c2 = (c1 >= 0) ? item.indexOf(':', c1 + 1) : -1;
+    if (c1 > 0 && c2 > c1) {
+      item.substring(0, c1).toCharArray(procName[n], sizeof(procName[n]));
+      procMem[n] = item.substring(c1 + 1, c2).toFloat();
+      procCpu[n] = item.substring(c2 + 1).toFloat();
+      n++;
+    }
+    i = bar + 1;
+  }
+  procCount = n;
+  lastData = millis(); everConnected = true;
+}
+
 void parseLine(const String& line) {
+  if (line.startsWith("proc=")) { parseProc(line.substring(5)); return; }
   int i = 0;
   while (i < (int)line.length()) {
     int sp = line.indexOf(' ', i); if (sp < 0) sp = line.length();
@@ -118,7 +149,7 @@ void handleTouch() {
   }
   if (!down && tpWasDown) {
     if (!tpFired && (millis() - tpPressStart) < LONG_MS) {
-      page = (page + 1) % 2; tft.fillScreen(TFT_BLACK);
+      page = (page + 1) % 3; tft.fillScreen(TFT_BLACK);
       Serial.printf("page -> %d\n", page);
     }
     tpFired = false;
@@ -191,12 +222,91 @@ void drawCenter(bool waiting,
   center.pushSprite(CX - center.width() / 2, CY - center.height() / 2);
 }
 
+// Page2: top-7 processes as a diverging bar chart that fills the area inside the
+// thin rings. Bars grow out from a central spine -- memory left (cyan), CPU right
+// (orange) -- with the process name floating over the spine and the actual % in
+// the outer gutters. The biggest-memory process is the centered "headline" row
+// (brightest, white name); the rest alternate below/above so memory forms a
+// pyramid. Rows zebra-shade so the touching same-colour bars stay distinct.
+void drawChart(bool waiting) {
+  chart.fillScreen(TFT_BLACK);
+  const int W = chart.width(), H = chart.height();     // 154 x 154
+  const int midX = W / 2, midY = H / 2;
+  chart.setTextDatum(middle_center);
+  if (waiting || procCount == 0) {
+    chart.setFont(&fonts::Font4);
+    chart.setTextColor(tft.color565(120, 120, 120));
+    if (waiting) { chart.drawString("WAITING",  midX, midY - 14);
+                   chart.drawString("FOR DATA", midX, midY + 14); }
+    else         chart.drawString("NO PROC", midX, midY);
+    chart.pushSprite(CX - W / 2, CY - H / 2);
+    return;
+  }
+
+  float memMax = 1.0f, cpuMax = 20.0f;                 // cpuMax floor = 20%
+  for (int i = 0; i < procCount; i++) {
+    if (procMem[i] > memMax) memMax = procMem[i];
+    if (procCpu[i] > cpuMax) cpuMax = procCpu[i];
+  }
+
+  const int pitch  = 22, barH = pitch;                 // barH == pitch -> rows touch
+  const int gutter = 18;                               // outer space for the % labels
+  const int barMax = midX - gutter;                    // bars grow out from the spine
+  const int minStub = 2;                               // every row keeps a sliver
+
+  int ys[PROC_MAX];
+  for (int i = 0; i < procCount; i++) {
+    int pair = (i + 1) / 2;
+    int s = (i & 1) ? pair : -pair;                    // 0,+1,-1,+2,-2,+3,-3
+    ys[i] = midY + s * pitch;
+    int memLen = (int)round(barMax * procMem[i] / memMax); if (memLen < minStub) memLen = minStub;
+    int cpuLen = (int)round(barMax * procCpu[i] / cpuMax); if (cpuLen < minStub) cpuLen = minStub;
+    // darker overall; headline a touch brighter; zebra only ~3% between rows
+    float f = (i == 0) ? 0.70f : (((s & 1) == 0) ? 0.60f : 0.585f);
+    uint16_t memCol = tft.color565(0, (uint8_t)(180 * f), (uint8_t)(235 * f));
+    uint16_t cpuCol = tft.color565((uint8_t)(255 * f), (uint8_t)(155 * f), (uint8_t)(20 * f));
+    int top = ys[i] - barH / 2;
+    chart.fillRect(midX - memLen, top, memLen, barH, memCol);   // memory -> left
+    chart.fillRect(midX,          top, cpuLen, barH, cpuCol);   // CPU    -> right
+  }
+
+  chart.drawFastVLine(midX, 0, H, tft.color565(15, 15, 20));     // central spine
+
+  // memory GB (2 decimals) at the left edge, CPU % at the right edge; the wide
+  // GB label may overlap the bar, which is fine -- it stays readable over it.
+  chart.setFont(&fonts::Font0);
+  chart.setTextColor(tft.color565(215, 220, 226));
+  for (int i = 0; i < procCount; i++) {
+    chart.setTextDatum(middle_left);
+    chart.drawString(String(procMem[i], 2) + "GB", 1, ys[i]);
+    chart.setTextDatum(middle_right);
+    chart.drawString(String((int)round(procCpu[i])) + "%", W - 1, ys[i]);
+  }
+
+  // names float over the spine; a 1px dark halo keeps them legible over the bars
+  chart.setFont(&fonts::Font2);
+  chart.setTextDatum(middle_center);
+  for (int i = 0; i < procCount; i++) {
+    chart.setTextColor(tft.color565(0, 0, 0));
+    chart.drawString(procName[i], midX - 1, ys[i]);
+    chart.drawString(procName[i], midX + 1, ys[i]);
+    chart.drawString(procName[i], midX, ys[i] - 1);
+    chart.drawString(procName[i], midX, ys[i] + 1);
+    chart.setTextColor(i == 0 ? tft.color565(255, 255, 255)
+                              : tft.color565(205, 212, 218));
+    chart.drawString(procName[i], midX, ys[i]);
+  }
+
+  chart.pushSprite(CX - W / 2, CY - H / 2);
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_BL, OUTPUT); digitalWrite(PIN_BL, HIGH);
   tft.init(); tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
   Wire.begin(TP_SDA, TP_SCL); Wire.setClock(100000); touchReset();
   center.setColorDepth(16); center.createSprite(104, 104);
+  chart.setColorDepth(16);  chart.createSprite(CHART_SZ, CHART_SZ);
   Serial.printf("monitor ready, free heap %u\n", ESP.getFreeHeap());
 }
 
@@ -225,7 +335,7 @@ void loop() {
     drawRing(TB_R0,  TB_R1,  weekDisp, wOk ? zoneColor(weekDisp) : GRAY);
     drawStartTick();
     drawCenter(waiting, "CPU", cpuDisp, true, "RAM", ramDisp, true);
-  } else {
+  } else if (page == 1) {
     drawRing(OUT_R0, OUT_R1, sessDisp, sOk ? zoneColor(sessDisp) : GRAY);
     drawRing(IN_R0,  IN_R1,  weekDisp, wOk ? zoneColor(weekDisp) : GRAY);
     drawRing(TA_R0,  TA_R1,  cpuDisp,  pOk ? zoneColor(cpuDisp)  : GRAY);
@@ -234,5 +344,11 @@ void loop() {
     drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
                sOk ? sesspTarget : -1, wOk ? weekpTarget : -1,
                sOk ? sesshVal : -1,    wOk ? weekhVal : -1);
+  } else {
+    // Page2: only the thin CPU/RAM rings (like the Claude-usage view); all the
+    // freed space goes to a bigger top-7 process chart.
+    drawRing(TA_R0, TA_R1, cpuDisp, pOk ? zoneColor(cpuDisp) : GRAY);
+    drawRing(TB_R0, TB_R1, ramDisp, pOk ? zoneColor(ramDisp) : GRAY);
+    drawChart(waiting);
   }
 }
