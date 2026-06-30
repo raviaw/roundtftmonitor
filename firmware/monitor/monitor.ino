@@ -231,7 +231,7 @@ void loop() {
     drawRing(TA_R0,  TA_R1,  cpuDisp,  pOk ? zoneColor(cpuDisp)  : GRAY);
     drawRing(TB_R0,  TB_R1,  ramDisp,  pOk ? zoneColor(ramDisp)  : GRAY);
     drawStartTick();
-    drawCenter(waiting, "SESS", sessDisp, sOk, "WEEK", weekDisp, wOk,
+    drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
                sOk ? sesspTarget : -1, wOk ? weekpTarget : -1,
                sOk ? sesshVal : -1,    wOk ? weekhVal : -1);
   }
