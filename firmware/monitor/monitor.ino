@@ -57,9 +57,11 @@ static const int TP_SDA = 4, TP_SCL = 5, TP_INT = 0, TP_RST = 1;
 static const uint8_t CST816_ADDR = 0x15;
 static const uint32_t LONG_MS   = 600;    // release in 0.6-1.5s -> rotate
 static const uint32_t BRIGHT_MS = 1500;   // hold past this -> brightness mode
+static const uint32_t DEBOUNCE_MS = 40;   // raw touch must hold this long to count
 uint8_t rotation = 3, page = 0;   // default = three long-presses (270 deg) from 0
-bool tpWasDown = false;
+bool tpWasDown = false;                    // debounced finger-down state
 uint32_t tpPressStart = 0;
+int tpLastVy = 0;                          // last good touch Y (for brightness drag)
 
 // Backlight (GPIO3) PWM brightness, persisted to NVS flash across reboots.
 Preferences prefs;
@@ -174,15 +176,28 @@ void setBrightness(int lvl) {
 // release saves the level to flash.
 void handleTouch() {
   int vy = 0;
-  bool down = readTouchY(vy);
+  bool raw = readTouchY(vy);
+  if (raw) tpLastVy = vy;                             // keep last good coordinate
+
+  // Debounce: the CST816 FingerNum register is polled over I2C without gating on
+  // the INT line, so a poll occasionally lands mid-update and returns a phantom
+  // "finger down" (or a dropped read during a real touch returns a phantom "up").
+  // Only let the debounced state flip after the raw reading holds for DEBOUNCE_MS,
+  // so a single-sample glitch never becomes a spurious tap/rotate edge.
+  static bool rawPrev = false;
+  static uint32_t rawSince = 0;
+  if (raw != rawPrev) { rawPrev = raw; rawSince = millis(); }
+  bool down = tpWasDown;                              // hold state until raw is stable
+  if (millis() - rawSince >= DEBOUNCE_MS) down = raw;
+
   if (down && !tpWasDown) { tpPressStart = millis(); brightMode = false; }
   uint32_t held = millis() - tpPressStart;
 
   if (down && !brightMode && held > BRIGHT_MS) {     // enter brightness mode
-    brightMode = true; baseY = vy; baseLevel = blLevel; lastShownLevel = -1;
+    brightMode = true; baseY = tpLastVy; baseLevel = blLevel; lastShownLevel = -1;
   }
   if (down && brightMode) {                          // up = brighter (~1.5/px)
-    setBrightness((int)baseLevel + (baseY - vy) * 3 / 2);
+    setBrightness((int)baseLevel + (baseY - tpLastVy) * 3 / 2);
   }
 
   if (!down && tpWasDown) {                           // released
