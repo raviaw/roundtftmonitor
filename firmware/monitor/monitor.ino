@@ -8,7 +8,7 @@
 // UI: short TAP cycles page (Page0 CPU/RAM, Page1 Session/Week + period bars,
 //     Page2 top-7 processes: diverging bars, memory left / CPU right, name in the
 //     middle, biggest-memory process centered then alternating below/above).
-//     Hold 0.6-1.5s then release rotates 90 deg; hold past 1.5s enters
+//     Swipe left/right rotates orientation 90 deg (CCW/CW); hold past 1.5s enters
 //     brightness mode -- drag up/down to set the backlight (saved to NVS).
 //     White tick marks each gauge's 0/start (in the ring gap, so it never flickers).
 //
@@ -55,17 +55,18 @@ static const float START_DEG = 0.0f;
 
 static const int TP_SDA = 4, TP_SCL = 5, TP_INT = 0, TP_RST = 1;
 static const uint8_t CST816_ADDR = 0x15;
-static const uint32_t LONG_MS   = 600;    // release in 0.6-1.5s -> rotate
 static const uint32_t BRIGHT_MS = 1500;   // hold past this -> brightness mode
 static const uint32_t DEBOUNCE_MS = 40;   // raw touch must hold this long to count
-static const uint32_t TAP_LOCK_MS = 150;  // ignore contact this long after a tap (lift-off bounce)
-static const uint32_t ROT_LOCK_MS = 2000; // longer after a rotate/brightness HOLD: ride out the CST816
-                                          // baseline re-converging, which otherwise emits a burst of
-                                          // phantom center-touches ("flips by itself right after I rotate")
+static const int      SWIPE_MIN_PX = 50;  // net horizontal travel that counts as a rotate swipe
+static const bool     SWIPE_RIGHT_IS_CW = true;  // flip if a right-swipe rotates the wrong way
+static const uint32_t TAP_LOCK_MS = 150;  // ignore contact this long after a tap/swipe (lift-off bounce)
+static const uint32_t ROT_LOCK_MS = 2000; // longer after the brightness HOLD: ride out the CST816 baseline
+                                          // re-converging (a prolonged touch otherwise emits phantom touches)
 uint8_t rotation = 3, page = 0;   // default = three long-presses (270 deg) from 0
 bool tpWasDown = false;                    // debounced finger-down state
 uint32_t tpPressStart = 0;
-int tpLastVy = 0;                          // last good touch Y (for brightness drag)
+int tpLastX = 0, tpLastY = 0;              // last good touch point, on-screen coords
+int tpDownX = 0, tpDownY = 0;              // touch point at the press edge (swipe origin)
 uint32_t gestureLockUntil = 0;             // suppress new presses until this time
 
 // Backlight (GPIO3) PWM brightness, persisted to NVS flash across reboots.
@@ -156,8 +157,9 @@ void cst816Write(uint8_t reg, uint8_t val) {
   Wire.beginTransmission(CST816_ADDR); Wire.write(reg); Wire.write(val); Wire.endTransmission();
 }
 // Read the first touch point; returns whether a finger is down and, if so, the
-// "visual" vertical coordinate vy (0=top..239=bottom) for the current rotation.
-bool readTouchY(int& vy) {
+// touch position mapped to on-screen coordinates (sx,sy) for the current rotation,
+// so "horizontal"/"vertical" always mean the same to the user regardless of orientation.
+bool readTouch(int& sx, int& sy) {
   Wire.beginTransmission(CST816_ADDR); Wire.write(0x02);
   if (Wire.endTransmission(false) != 0) return false;
   if (Wire.requestFrom((int)CST816_ADDR, 5) != 5) return false;
@@ -166,11 +168,11 @@ bool readTouchY(int& vy) {
   if ((st & 0x0F) == 0) return false;
   int x = ((xh & 0x0F) << 8) | xl;
   int y = ((yh & 0x0F) << 8) | yl;
-  switch (rotation & 0x03) {            // map raw panel axes to on-screen vertical
-    case 0:  vy = y;        break;
-    case 1:  vy = 239 - x;  break;
-    case 2:  vy = 239 - y;  break;
-    default: vy = x;        break;      // case 3
+  switch (rotation & 0x03) {            // map raw panel axes to on-screen (sx,sy)
+    case 0:  sx = x;       sy = y;       break;
+    case 1:  sx = y;       sy = 239 - x; break;
+    case 2:  sx = 239 - x; sy = 239 - y; break;
+    default: sx = 239 - y; sy = x;       break;   // case 3
   }
   return true;
 }
@@ -180,58 +182,63 @@ void setBrightness(int lvl) {
   blLevel = (uint8_t)lvl; ledcWrite(PIN_BL, blLevel);
 }
 
-// Gestures: short tap (<0.6s) = next page; hold 0.6-1.5s then release = rotate;
-// hold past 1.5s = brightness mode -> drag up/down to adjust (overlay shown),
-// release saves the level to flash.
+// Gestures: horizontal SWIPE = rotate 90 (right/left = CW/CCW); short TAP = next page;
+// HOLD past 1.5s = brightness mode -> drag up/down to adjust (overlay shown), release saves.
+// A swipe needs real directional travel, so the phantom center-touches (which jitter in
+// place, never travel) can only ever land as a harmless tap, never a rotate.
 void handleTouch() {
-  int vy = 0;
+  int sx = 0, sy = 0;
   // Poll every loop -- idle reads return "no finger" cleanly, and steady polling
   // keeps the CST816 out of the idle state that produced autonomous phantom touches
   // (verified locally: phantoms only ever appeared when the panel was left unpolled).
-  bool raw = readTouchY(vy);
-  if (raw) tpLastVy = vy;                             // keep last good coordinate
+  bool raw = readTouch(sx, sy);
+  if (raw) { tpLastX = sx; tpLastY = sy; }           // keep last good point
 
   // Debounce: even a real edge can straddle a mid-update read, so only let the
   // debounced state flip after the raw reading holds for DEBOUNCE_MS -- a
-  // single-sample glitch never becomes a spurious tap/rotate edge.
+  // single-sample glitch never becomes a spurious edge.
   static bool rawPrev = false;
   static uint32_t rawSince = 0;
   if (raw != rawPrev) { rawPrev = raw; rawSince = millis(); }
   bool down = tpWasDown;                              // hold state until raw is stable
   if (millis() - rawSince >= DEBOUNCE_MS) down = raw;
 
-  // Lockout: ignore contact for a window after a gesture. Short after a tap (the finger
-  // rolling off the convex round glass re-grazes it); LONG after a rotate/brightness hold,
-  // to ride out the CST816 re-converging its baseline after a prolonged touch -- the window
-  // in which it otherwise fires a burst of phantom center-touches.
+  // Lockout: ignore contact for a window after a gesture. Short after a tap/swipe (the finger
+  // rolling off the convex round glass re-grazes it); LONG after the brightness hold, to ride
+  // out the CST816 re-converging its baseline after a prolonged touch.
   if ((int32_t)(millis() - gestureLockUntil) < 0) down = false;
 
-  if (down && !tpWasDown) { tpPressStart = millis(); brightMode = false; }
+  if (down && !tpWasDown) {                           // press edge
+    tpPressStart = millis(); brightMode = false;
+    tpDownX = tpLastX; tpDownY = tpLastY;             // remember where a swipe started
+  }
   uint32_t held = millis() - tpPressStart;
 
   if (down && !brightMode && held > BRIGHT_MS) {     // enter brightness mode
-    brightMode = true; baseY = tpLastVy; baseLevel = blLevel; lastShownLevel = -1;
+    brightMode = true; baseY = tpLastY; baseLevel = blLevel; lastShownLevel = -1;
   }
   if (down && brightMode) {                          // up = brighter (~1.5/px)
-    setBrightness((int)baseLevel + (baseY - tpLastVy) * 3 / 2);
+    setBrightness((int)baseLevel + (baseY - tpLastY) * 3 / 2);
   }
 
-  if (!down && tpWasDown) {                           // released
+  if (!down && tpWasDown) {                           // release edge
+    int dx = tpLastX - tpDownX, dy = tpLastY - tpDownY;   // net travel since press (jitter-robust)
     if (brightMode) {
       prefs.putUChar("bl", blLevel);                 // persist chosen level
       brightMode = false; tft.fillScreen(TFT_BLACK);
       Serial.printf("brightness -> %u\n", blLevel);
-      gestureLockUntil = millis() + ROT_LOCK_MS;
-    } else if (held < LONG_MS) {
+      gestureLockUntil = millis() + ROT_LOCK_MS;     // long: baseline recovery after the hold
+    } else if (abs(dx) >= SWIPE_MIN_PX && abs(dx) > abs(dy)) {   // horizontal swipe -> rotate
+      bool cw = (dx > 0) == SWIPE_RIGHT_IS_CW;
+      rotation = (rotation + (cw ? 1 : 3)) & 0x03;   // +1 = CW, +3 = one step CCW
+      tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
+      prefs.putUChar("rot", rotation);               // persist orientation
+      Serial.printf("swipe dx=%d dy=%d -> rotate %d\n", dx, dy, rotation);
+      gestureLockUntil = millis() + TAP_LOCK_MS;
+    } else {                                          // tap -> next page
       page = (page + 1) % 3; tft.fillScreen(TFT_BLACK);
       Serial.printf("page -> %d\n", page);
       gestureLockUntil = millis() + TAP_LOCK_MS;
-    } else {
-      rotation = (rotation + 1) & 0x03;
-      tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
-      prefs.putUChar("rot", rotation);               // persist orientation
-      Serial.printf("rotate -> %d\n", rotation);
-      gestureLockUntil = millis() + ROT_LOCK_MS;      // long: swallow the post-rotate phantom burst
     }
   }
   tpWasDown = down;
