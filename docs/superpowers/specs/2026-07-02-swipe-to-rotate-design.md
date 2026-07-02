@@ -18,9 +18,16 @@ Removing the hold also removes the baseline-poisoning trigger.
 ## Gesture ladder (after)
 | Gesture | Detection | Action |
 |---|---|---|
-| **Swipe L / R** | net horizontal travel ≥ `SWIPE_MIN_PX`, and \|dx\| > \|dy\| | rotate 90° (R = +1, L = −1) |
-| **Tap** | released < `BRIGHT_MS`, not a swipe | next page |
+| **Swipe (any direction)** | net travel ≥ `SWIPE_MIN_PX` on either axis | rotate 90° (dominant axis → CW/CCW) |
+| **Tap** | released < `BRIGHT_MS`, low travel | next page |
 | **Hold ≥ `BRIGHT_MS`** | low travel, held past 1.5 s | brightness mode → drag → release saves |
+
+> **On-device finding (revised from horizontal-only):** the trajectory capture showed the
+> CST816 tracks swipe motion cleanly (smooth x/y streams), but users naturally swipe
+> *vertically* as often as horizontally. Horizontal-only detection dropped those to
+> page-changes ("hard to register"). Fixed by accepting a swipe on **either** axis; the
+> dominant axis picks CW vs CCW. Measured: real swipes travel 150–200 px, taps 0–8 px,
+> phantom peaks ~40 px — so the 50 px bar cleanly separates all three.
 
 The 0.6–1.5 s rotate band and `LONG_MS` are removed. Any non-swipe release before the
 brightness threshold is a page tap.
@@ -34,8 +41,9 @@ brightness threshold is a page tap.
   (sy matches the existing, working `vy` mapping; sx derived from the same convention.)
 - Track `tpDownX/Y` at the press edge and `tpLastX/Y` on every good read.
 - At the release edge, `dx = tpLastX − tpDownX`, `dy = tpLastY − tpDownY` (net
-  displacement — robust to jitter). Classify swipe first, else fall through to
-  tap/hold. Direction constant `SWIPE_RIGHT_IS_CW` makes flipping trivial if it
+  displacement — robust to jitter). A swipe is `|dx| ≥ SWIPE_MIN_PX || |dy| ≥
+  SWIPE_MIN_PX`; the dominant axis's sign picks CW vs CCW. Classify swipe first,
+  else fall through to tap/hold. Constant `SWIPE_CW` flips all directions if it
   feels backwards.
 
 ## Tuning

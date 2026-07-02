@@ -8,7 +8,7 @@
 // UI: short TAP cycles page (Page0 CPU/RAM, Page1 Session/Week + period bars,
 //     Page2 top-7 processes: diverging bars, memory left / CPU right, name in the
 //     middle, biggest-memory process centered then alternating below/above).
-//     Swipe left/right rotates orientation 90 deg (CCW/CW); hold past 1.5s enters
+//     Swipe (any direction) rotates orientation 90 deg; hold past 1.5s enters
 //     brightness mode -- drag up/down to set the backlight (saved to NVS).
 //     White tick marks each gauge's 0/start (in the ring gap, so it never flickers).
 //
@@ -57,8 +57,8 @@ static const int TP_SDA = 4, TP_SCL = 5, TP_INT = 0, TP_RST = 1;
 static const uint8_t CST816_ADDR = 0x15;
 static const uint32_t BRIGHT_MS = 1500;   // hold past this -> brightness mode
 static const uint32_t DEBOUNCE_MS = 40;   // raw touch must hold this long to count
-static const int      SWIPE_MIN_PX = 50;  // net horizontal travel that counts as a rotate swipe
-static const bool     SWIPE_RIGHT_IS_CW = true;  // flip if a right-swipe rotates the wrong way
+static const int      SWIPE_MIN_PX = 50;  // net travel (either axis) that counts as a rotate swipe
+static const bool     SWIPE_CW = true;    // flip if swipes rotate the wrong way
 static const uint32_t TAP_LOCK_MS = 150;  // ignore contact this long after a tap/swipe (lift-off bounce)
 static const uint32_t ROT_LOCK_MS = 2000; // longer after the brightness HOLD: ride out the CST816 baseline
                                           // re-converging (a prolonged touch otherwise emits phantom touches)
@@ -182,9 +182,9 @@ void setBrightness(int lvl) {
   blLevel = (uint8_t)lvl; ledcWrite(PIN_BL, blLevel);
 }
 
-// Gestures: horizontal SWIPE = rotate 90 (right/left = CW/CCW); short TAP = next page;
-// HOLD past 1.5s = brightness mode -> drag up/down to adjust (overlay shown), release saves.
-// A swipe needs real directional travel, so the phantom center-touches (which jitter in
+// Gestures: SWIPE in any direction = rotate 90 (dominant axis picks CW/CCW); short TAP = next
+// page; HOLD past 1.5s = brightness mode -> drag up/down to adjust (overlay shown), release saves.
+// A swipe needs real travel (>=SWIPE_MIN_PX), so the phantom center-touches (which jitter in
 // place, never travel) can only ever land as a harmless tap, never a rotate.
 void handleTouch() {
   int sx = 0, sy = 0;
@@ -223,19 +223,22 @@ void handleTouch() {
 
   if (!down && tpWasDown) {                           // release edge
     int dx = tpLastX - tpDownX, dy = tpLastY - tpDownY;   // net travel since press (jitter-robust)
+    int adx = abs(dx), ady = abs(dy);
     if (brightMode) {
       prefs.putUChar("bl", blLevel);                 // persist chosen level
       brightMode = false; tft.fillScreen(TFT_BLACK);
       Serial.printf("brightness -> %u\n", blLevel);
       gestureLockUntil = millis() + ROT_LOCK_MS;     // long: baseline recovery after the hold
-    } else if (abs(dx) >= SWIPE_MIN_PX && abs(dx) > abs(dy)) {   // horizontal swipe -> rotate
-      bool cw = (dx > 0) == SWIPE_RIGHT_IS_CW;
-      rotation = (rotation + (cw ? 1 : 3)) & 0x03;   // +1 = CW, +3 = one step CCW
+    } else if (adx >= SWIPE_MIN_PX || ady >= SWIPE_MIN_PX) {   // a swipe in ANY direction -> rotate
+      int dir = (adx >= ady) ? (dx > 0 ? 1 : -1)     // dominant axis picks CW vs CCW:
+                             : (dy > 0 ? 1 : -1);     // right/down = one way, left/up = the other
+      if (!SWIPE_CW) dir = -dir;
+      rotation = (rotation + (dir > 0 ? 1 : 3)) & 0x03;   // +1 = CW, +3 = one step CCW
       tft.setRotation(rotation); tft.fillScreen(TFT_BLACK);
       prefs.putUChar("rot", rotation);               // persist orientation
       Serial.printf("swipe dx=%d dy=%d -> rotate %d\n", dx, dy, rotation);
       gestureLockUntil = millis() + TAP_LOCK_MS;
-    } else {                                          // tap -> next page
+    } else {                                          // low travel -> tap = next page
       page = (page + 1) % 3; tft.fillScreen(TFT_BLACK);
       Serial.printf("page -> %d\n", page);
       gestureLockUntil = millis() + TAP_LOCK_MS;
