@@ -117,6 +117,12 @@ if not _TTY:
     except Exception:
         pass
 
+
+def _log(msg: str) -> None:
+    """Timestamped event line (local time). Used for connect/disconnect/error
+    events -- NOT the per-second data line -- so the log stays diagnosable."""
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  {msg}", flush=True)
+
 # --- Claude usage (undocumented endpoint; may change/break without notice) ---
 CRED_PATH = os.path.expanduser("~/.claude/.credentials.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
@@ -218,10 +224,10 @@ def get_claude_usage() -> dict:
         # 429 = rate-limited (respect Retry-After), 401 = token mid-rotation; both
         # are transient, so retry soon rather than caching the gap for 5 minutes.
         wait = _retry_after(e, USAGE_RETRY) if e.code == 429 else USAGE_RETRY
-        print(f"usage fetch failed: {e}; retry in {wait:.0f}s", flush=True)
+        _log(f"usage fetch failed: {e}; retry in {wait:.0f}s")
         _usage["next"] = now + wait
     except Exception as e:
-        print(f"usage fetch failed: {e}; retry in {USAGE_RETRY:.0f}s", flush=True)
+        _log(f"usage fetch failed: {e}; retry in {USAGE_RETRY:.0f}s")
         _usage["next"] = now + USAGE_RETRY
     return _usage
 
@@ -326,13 +332,13 @@ def _proc_scanner() -> None:
             _proc_items = _scan_fast() if use_nt else _scan_psutil()
         except Exception as e:
             if use_nt:
-                print(f"fast proc scan failed ({e}); falling back to psutil", flush=True)
+                _log(f"fast proc scan failed ({e}); falling back to psutil")
                 use_nt = False
             try:
                 _proc_items = _scan_psutil()
                 slow = True
             except Exception as e2:
-                print(f"proc scan failed: {e2}", flush=True)
+                _log(f"proc scan failed: {e2}")
         time.sleep(PROC_REFRESH_SLOW if slow else PROC_REFRESH)
 
 
@@ -357,23 +363,31 @@ def main() -> None:
     threading.Thread(target=_proc_scanner, daemon=True).start()  # top-procs, off the hot path
 
     ser = None
+    missing_since = None          # monotonic time the board first went absent (None = present)
     while True:
         try:
             if ser is None or not ser.is_open:
                 port = forced or find_port()
                 if not port:
-                    print("board not found (303A:1001); retrying...", flush=True)
+                    if missing_since is None:      # log the outage once, not every 2 s
+                        missing_since = time.monotonic()
+                        _log("board not found (303A:1001); retrying every 2 s...")
                     time.sleep(2)
                     continue
                 ser = serial.Serial(port, BAUD, timeout=1)
-                print(f"connected on {port}", flush=True)
+                if missing_since is not None:
+                    gone = time.monotonic() - missing_since
+                    _log(f"connected on {port} (was absent {gone:.0f} s)")
+                    missing_since = None
+                else:
+                    _log(f"connected on {port}")
 
             line = build_line()
             ser.write(line.encode("ascii"))
             if _TTY:
                 print(line.strip(), flush=True)
         except (serial.SerialException, OSError) as e:
-            print(f"serial error: {e}; reconnecting...", flush=True)
+            _log(f"serial error: {e}; reconnecting...")
             try:
                 if ser:
                     ser.close()
