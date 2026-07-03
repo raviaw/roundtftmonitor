@@ -26,6 +26,7 @@ import os
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
@@ -119,11 +120,18 @@ if not _TTY:
 # --- Claude usage (undocumented endpoint; may change/break without notice) ---
 CRED_PATH = os.path.expanduser("~/.claude/.credentials.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
-USAGE_REFRESH = 300.0   # seconds; query Claude limits once every 5 minutes
+USAGE_REFRESH = 300.0   # seconds; re-query after a *successful* fetch (5 min)
+USAGE_RETRY = 30.0      # seconds; retry sooner after a *failed* fetch, so a
+                        # rate-limited (429) or token-rotation (401) slot doesn't
+                        # blank the display for a whole 5-minute block
+USAGE_RETRY_MAX = 300.0  # cap on any server-supplied Retry-After backoff
 SESSION_PERIOD = 5 * 3600        # 5-hour rolling window
 WEEK_PERIOD = 7 * 24 * 3600      # nominal 7-day window (tune if it resets sooner)
+# "next": monotonic time before which get_claude_usage() serves the cache without
+# hitting the network. Advanced by USAGE_REFRESH on success, USAGE_RETRY (or the
+# 429 Retry-After) on failure -- so success is polled gently, failure recovers fast.
 _usage = {"sess": None, "week": None, "sessp": None, "weekp": None,
-          "sessh": None, "weekh": None, "ts": 0.0}
+          "sessh": None, "weekh": None, "next": 0.0}
 
 
 def _remaining_seconds(resets_at):
@@ -162,16 +170,30 @@ def _read_token() -> str | None:
         return None
 
 
+def _retry_after(err, default):
+    """Seconds to wait per an HTTP 429's Retry-After header, capped; else default."""
+    try:
+        ra = err.headers.get("Retry-After")
+        if ra is not None:
+            return max(USAGE_RETRY, min(USAGE_RETRY_MAX, float(ra)))
+    except Exception:
+        pass
+    return default
+
+
 def get_claude_usage() -> dict:
-    """Usage % + period-progress % from the OAuth endpoint, cached for
-    USAGE_REFRESH. Returns last known values (or None) on failure -- never raises."""
+    """Usage % + period-progress % from the OAuth endpoint. Serves a cache until
+    _usage["next"]: USAGE_REFRESH after a success, USAGE_RETRY (or the 429
+    Retry-After) after a failure, so a rate-limited slot recovers in seconds
+    instead of blanking the display for 5 minutes. Keeps last known values (or
+    None) on failure -- never raises."""
     now = time.monotonic()
-    if _usage["ts"] and now - _usage["ts"] < USAGE_REFRESH:
+    if now < _usage["next"]:
         return _usage
 
     token = _read_token()  # re-read each time: Claude Code rewrites it on refresh
     if not token:
-        _usage["ts"] = now
+        _usage["next"] = now + USAGE_RETRY   # creds not ready yet -- look again soon
         return _usage
 
     req = urllib.request.Request(USAGE_URL, headers={
@@ -191,9 +213,16 @@ def get_claude_usage() -> dict:
         _usage["weekp"] = _period_progress(sd.get("resets_at"), WEEK_PERIOD)
         _usage["sessh"] = _hours_left(fh.get("resets_at"))
         _usage["weekh"] = _hours_left(sd.get("resets_at"))
+        _usage["next"] = now + USAGE_REFRESH
+    except urllib.error.HTTPError as e:
+        # 429 = rate-limited (respect Retry-After), 401 = token mid-rotation; both
+        # are transient, so retry soon rather than caching the gap for 5 minutes.
+        wait = _retry_after(e, USAGE_RETRY) if e.code == 429 else USAGE_RETRY
+        print(f"usage fetch failed: {e}; retry in {wait:.0f}s", flush=True)
+        _usage["next"] = now + wait
     except Exception as e:
-        print(f"usage fetch failed: {e}", flush=True)  # keep last known values
-    _usage["ts"] = now
+        print(f"usage fetch failed: {e}; retry in {USAGE_RETRY:.0f}s", flush=True)
+        _usage["next"] = now + USAGE_RETRY
     return _usage
 
 
