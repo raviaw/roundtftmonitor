@@ -3,8 +3,13 @@
 Host agent for the roundtft PC + Claude monitor.
 
 Streams to the ESP32-2424S012 over USB-serial, one line per update:
-    cpu=37.5 ram=61.2 sess=26.0 week=56.0
+    cpu=37.5 ram=61.2 sess=26.0 week=56.0 usageage=42
     proc=chrome:8.43:12.5|Code:6.10:3.0|...      (top-7 by memory; <=7 items)
+
+- usageage    : seconds since usage figures were last *successfully* fetched.
+                Emitted only once there has been a success; lets the firmware gray
+                out sess/week when the endpoint is failing (429/401) and the values
+                have gone stale. Omitted entirely until the first success.
 
 - cpu / ram  : PC CPU% and RAM% via psutil (no driver, no admin)
 - sess / week: Claude Code 5-hour session% and 7-day week% from the (UNDOCUMENTED)
@@ -137,7 +142,7 @@ WEEK_PERIOD = 7 * 24 * 3600      # nominal 7-day window (tune if it resets soone
 # hitting the network. Advanced by USAGE_REFRESH on success, USAGE_RETRY (or the
 # 429 Retry-After) on failure -- so success is polled gently, failure recovers fast.
 _usage = {"sess": None, "week": None, "sessp": None, "weekp": None,
-          "sessh": None, "weekh": None, "next": 0.0}
+          "sessh": None, "weekh": None, "next": 0.0, "ok_at": None, "fails": 0}
 
 
 def _remaining_seconds(resets_at):
@@ -220,15 +225,22 @@ def get_claude_usage() -> dict:
         _usage["sessh"] = _hours_left(fh.get("resets_at"))
         _usage["weekh"] = _hours_left(sd.get("resets_at"))
         _usage["next"] = now + USAGE_REFRESH
+        _usage["ok_at"] = now       # last *successful* fetch -> feeds usageage= (staleness)
+        if _usage["fails"]:         # log recovery once (mirrors the board "was absent Ns" line)
+            _log(f"usage fetch OK (sess={_usage['sess']} week={_usage['week']}) "
+                 f"after {_usage['fails']} failures")
+            _usage["fails"] = 0
     except urllib.error.HTTPError as e:
         # 429 = rate-limited (respect Retry-After), 401 = token mid-rotation; both
         # are transient, so retry soon rather than caching the gap for 5 minutes.
         wait = _retry_after(e, USAGE_RETRY) if e.code == 429 else USAGE_RETRY
         _log(f"usage fetch failed: {e}; retry in {wait:.0f}s")
         _usage["next"] = now + wait
+        _usage["fails"] += 1
     except Exception as e:
         _log(f"usage fetch failed: {e}; retry in {USAGE_RETRY:.0f}s")
         _usage["next"] = now + USAGE_RETRY
+        _usage["fails"] += 1
     return _usage
 
 
@@ -350,6 +362,10 @@ def build_line() -> str:
     for key in ("sess", "week", "sessp", "weekp", "sessh", "weekh"):
         if u[key] is not None:
             parts.append(f"{key}={u[key]:.1f}")
+    # Age of the usage figures so the firmware can gray them when they go stale
+    # (the 429/401-storm case: cached values keep streaming, but stop being fresh).
+    if u["ok_at"] is not None:
+        parts.append(f"usageage={int(time.monotonic() - u['ok_at'])}")
     line = " ".join(parts) + "\n"
     procs = _proc_items                       # snapshot the latest scan (lock-free)
     if procs:

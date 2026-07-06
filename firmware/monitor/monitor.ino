@@ -1,8 +1,9 @@
 // PC + Claude monitor for GUITION ESP32-2424S012 (ESP32-C3 + 1.28" round GC9A01)
 // Lines over USB-serial (COM5 @115200), '\n' terminated:
-//   cpu=37.5 ram=61.2 sess=26 week=56 sessp=44 weekp=99 sessh=2.8 weekh=8
+//   cpu=37.5 ram=61.2 sess=26 week=56 sessp=44 weekp=99 sessh=2.8 weekh=8 usageage=42
 //   cpu/ram=PC%, sess/week=Claude session/week %, sessp/weekp=period elapsed %,
-//   sessh/weekh=hours left in each window. Unknown keys ignored.
+//   sessh/weekh=hours left in each window. usageage=sec since usage was last fetched
+//   OK (grays sess/week when stale; absent until the first success). Unknown keys ignored.
 //   proc=name:memGB:cpu%|name:memGB:cpu%|...  top-7 processes by memory (own line).
 //
 // UI: short TAP cycles page (Page0 CPU/RAM, Page1 Session/Week + period bars,
@@ -82,6 +83,11 @@ float cpuTarget=0, ramTarget=0, sessTarget=0, weekTarget=0;
 float cpuDisp=0,  ramDisp=0,  sessDisp=0,  weekDisp=0;
 bool sessHave=false, weekHave=false;
 float sesspTarget=-1, weekpTarget=-1, sesshVal=-1, weekhVal=-1;
+float usageAgeTarget=-1;   // sec since the host last *successfully* fetched usage (-1 = unknown / old host)
+// Gray the session/week readouts once usage is this stale. The host polls every
+// 5 min on success, so usageage sawtooths 0..~300 when healthy; 900 = 3 missed
+// polls = a real outage (429/401 storm), not a single blip. Tune vs host USAGE_REFRESH.
+static const float USAGE_STALE_SEC = 900;
 uint32_t lastData = 0;
 bool everConnected = false;
 String inbuf;
@@ -134,6 +140,7 @@ void parseLine(const String& line) {
       else if (k == "weekp") weekpTarget = constrain(v, 0, 100);
       else if (k == "sessh") sesshVal = v;
       else if (k == "weekh") weekhVal = v;
+      else if (k == "usageage") usageAgeTarget = v;
     }
     i = sp + 1;
   }
@@ -282,10 +289,13 @@ void drawBar(int y, float frac, float hours) {       // inside the center sprite
   }
 }
 
+// v1stale/v2stale: we HAVE a value but it has gone stale (usage endpoint failing) --
+// keep showing the last number, but in gray, so a frozen reading is obvious.
 void drawCenter(bool waiting,
                 const char* l1, float v1, bool v1ok,
                 const char* l2, float v2, bool v2ok,
-                float p1 = -1, float p2 = -1, float h1 = -1, float h2 = -1) {
+                float p1 = -1, float p2 = -1, float h1 = -1, float h2 = -1,
+                bool v1stale = false, bool v2stale = false) {
   center.fillScreen(TFT_BLACK);
   const int w = center.width() / 2;
   const uint16_t label = tft.color565(150, 150, 160);
@@ -298,14 +308,14 @@ void drawCenter(bool waiting,
   } else {
     center.setFont(&fonts::Font2); center.setTextColor(label, TFT_BLACK);
     center.drawString(l1, w, 14);
-    center.setFont(&fonts::Font4); center.setTextColor(v1ok ? zoneColor(v1) : GRAY, TFT_BLACK);
+    center.setFont(&fonts::Font4); center.setTextColor((v1ok && !v1stale) ? zoneColor(v1) : GRAY, TFT_BLACK);
     center.drawString(v1ok ? String((int)round(v1)) + "%" : "--", w, 33);
     if (p1 >= 0) drawBar(47, p1, h1);
 
     center.setTextDatum(middle_center);
     center.setFont(&fonts::Font2); center.setTextColor(label, TFT_BLACK);
     center.drawString(l2, w, 63);
-    center.setFont(&fonts::Font4); center.setTextColor(v2ok ? zoneColor(v2) : GRAY, TFT_BLACK);
+    center.setFont(&fonts::Font4); center.setTextColor((v2ok && !v2stale) ? zoneColor(v2) : GRAY, TFT_BLACK);
     center.drawString(v2ok ? String((int)round(v2)) + "%" : "--", w, 82);
     if (p2 >= 0) drawBar(96, p2, h2);
   }
@@ -464,22 +474,27 @@ void loop() {
   }
 
   bool sOk = sessHave && !waiting, wOk = weekHave && !waiting, pOk = !waiting;
+  // Usage went stale if the host says its last successful fetch is too old. -1 =
+  // the host never reported an age (old host, or no success yet) -> don't gray.
+  bool usageFresh = (usageAgeTarget < 0) || (usageAgeTarget <= USAGE_STALE_SEC);
+  bool sFresh = sOk && usageFresh, wFresh = wOk && usageFresh;
   if (page == 0) {
     drawRing(OUT_R0, OUT_R1, cpuDisp, pOk ? zoneColor(cpuDisp) : GRAY);
     drawRing(IN_R0,  IN_R1,  ramDisp, pOk ? zoneColor(ramDisp) : GRAY);
-    drawRing(TA_R0,  TA_R1,  sessDisp, sOk ? zoneColor(sessDisp) : GRAY);
-    drawRing(TB_R0,  TB_R1,  weekDisp, wOk ? zoneColor(weekDisp) : GRAY);
+    drawRing(TA_R0,  TA_R1,  sessDisp, sFresh ? zoneColor(sessDisp) : GRAY);
+    drawRing(TB_R0,  TB_R1,  weekDisp, wFresh ? zoneColor(weekDisp) : GRAY);
     drawStartTick();
     drawCenter(waiting, "CPU", cpuDisp, true, "RAM", ramDisp, true);
   } else if (page == 1) {
-    drawRing(OUT_R0, OUT_R1, sessDisp, sOk ? zoneColor(sessDisp) : GRAY);
-    drawRing(IN_R0,  IN_R1,  weekDisp, wOk ? zoneColor(weekDisp) : GRAY);
+    drawRing(OUT_R0, OUT_R1, sessDisp, sFresh ? zoneColor(sessDisp) : GRAY);
+    drawRing(IN_R0,  IN_R1,  weekDisp, wFresh ? zoneColor(weekDisp) : GRAY);
     drawRing(TA_R0,  TA_R1,  cpuDisp,  pOk ? zoneColor(cpuDisp)  : GRAY);
     drawRing(TB_R0,  TB_R1,  ramDisp,  pOk ? zoneColor(ramDisp)  : GRAY);
     drawStartTick();
     drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
                sOk ? sesspTarget : -1, wOk ? weekpTarget : -1,
-               sOk ? sesshVal : -1,    wOk ? weekhVal : -1);
+               sOk ? sesshVal : -1,    wOk ? weekhVal : -1,
+               sOk && !usageFresh, wOk && !usageFresh);
   } else {
     // Page2: only the thin CPU/RAM rings (like the Claude-usage view); all the
     // freed space goes to a bigger top-7 process chart.
