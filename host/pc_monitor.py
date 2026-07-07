@@ -131,18 +131,27 @@ def _log(msg: str) -> None:
 # --- Claude usage (undocumented endpoint; may change/break without notice) ---
 CRED_PATH = os.path.expanduser("~/.claude/.credentials.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
-USAGE_REFRESH = 300.0   # seconds; re-query after a *successful* fetch (5 min)
-USAGE_RETRY = 30.0      # seconds; retry sooner after a *failed* fetch, so a
-                        # rate-limited (429) or token-rotation (401) slot doesn't
-                        # blank the display for a whole 5-minute block
-USAGE_RETRY_MAX = 300.0  # cap on any server-supplied Retry-After backoff
+# This endpoint is aggressively rate-limited per token: ~5 requests trip a 429
+# with Retry-After 300, and the budget is *shared* with Claude Code's own usage
+# polling. So poll gently and back off hard -- bursting (the old 30s retry) just
+# starves us into a permanent 429. The firmware grays stale values via usageage=,
+# so a slow refresh is harmless.
+USAGE_REFRESH = 900.0   # seconds; re-query after a *successful* fetch (15 min)
+USAGE_FAIL_BACKOFF = 300.0  # seconds; gentle wait after a 429/other failure
+USAGE_RETRY_MAX = 900.0  # cap on any server-supplied Retry-After backoff
+USAGE_TOKEN_POLL = 30.0  # seconds; cheap creds-file re-read cadence (no network)
+                         # while the token is missing or a 401'd token awaits rotation
+USAGE_401_MAX_WAIT = 900.0  # re-probe the network at most this often while a 401'd
+                            # token persists unchanged (fluke-recovery safety net)
 SESSION_PERIOD = 5 * 3600        # 5-hour rolling window
 WEEK_PERIOD = 7 * 24 * 3600      # nominal 7-day window (tune if it resets sooner)
 # "next": monotonic time before which get_claude_usage() serves the cache without
-# hitting the network. Advanced by USAGE_REFRESH on success, USAGE_RETRY (or the
-# 429 Retry-After) on failure -- so success is polled gently, failure recovers fast.
+# hitting the network. Advanced by USAGE_REFRESH on success, USAGE_FAIL_BACKOFF (or
+# the 429 Retry-After) on failure. "bad_token": an accessToken a 401 proved dead --
+# we serve cache (cheap file reads only) until Claude Code rotates it.
 _usage = {"sess": None, "week": None, "sessp": None, "weekp": None,
-          "sessh": None, "weekh": None, "next": 0.0, "ok_at": None, "fails": 0}
+          "sessh": None, "weekh": None, "next": 0.0, "ok_at": None, "fails": 0,
+          "bad_token": None, "bad_at": 0.0}
 
 
 def _remaining_seconds(resets_at):
@@ -186,7 +195,7 @@ def _retry_after(err, default):
     try:
         ra = err.headers.get("Retry-After")
         if ra is not None:
-            return max(USAGE_RETRY, min(USAGE_RETRY_MAX, float(ra)))
+            return max(USAGE_FAIL_BACKOFF, min(USAGE_RETRY_MAX, float(ra)))
     except Exception:
         pass
     return default
@@ -194,17 +203,24 @@ def _retry_after(err, default):
 
 def get_claude_usage() -> dict:
     """Usage % + period-progress % from the OAuth endpoint. Serves a cache until
-    _usage["next"]: USAGE_REFRESH after a success, USAGE_RETRY (or the 429
-    Retry-After) after a failure, so a rate-limited slot recovers in seconds
-    instead of blanking the display for 5 minutes. Keeps last known values (or
-    None) on failure -- never raises."""
+    _usage["next"]: USAGE_REFRESH after a success, USAGE_FAIL_BACKOFF (or the 429
+    Retry-After) after a failure, and -- after a 401 -- cheap file re-reads only
+    until Claude Code rotates the token, so we never burst past the endpoint's
+    tight shared rate limit. Keeps last known values (or None) on failure -- never
+    raises."""
     now = time.monotonic()
     if now < _usage["next"]:
         return _usage
 
     token = _read_token()  # re-read each time: Claude Code rewrites it on refresh
     if not token:
-        _usage["next"] = now + USAGE_RETRY   # creds not ready yet -- look again soon
+        _usage["next"] = now + USAGE_TOKEN_POLL   # creds not ready yet -- look again soon
+        return _usage
+    # A 401 proved this exact token dead. Don't hit the network again until Claude
+    # Code rotates accessToken (cheap file re-reads only); re-probe at most every
+    # USAGE_401_MAX_WAIT in case the 401 was a fluke.
+    if token == _usage["bad_token"] and (now - _usage["bad_at"]) < USAGE_401_MAX_WAIT:
+        _usage["next"] = now + USAGE_TOKEN_POLL
         return _usage
 
     req = urllib.request.Request(USAGE_URL, headers={
@@ -226,20 +242,29 @@ def get_claude_usage() -> dict:
         _usage["weekh"] = _hours_left(sd.get("resets_at"))
         _usage["next"] = now + USAGE_REFRESH
         _usage["ok_at"] = now       # last *successful* fetch -> feeds usageage= (staleness)
+        _usage["bad_token"] = None  # this token works -> clear any 401 rotation-wait
         if _usage["fails"]:         # log recovery once (mirrors the board "was absent Ns" line)
             _log(f"usage fetch OK (sess={_usage['sess']} week={_usage['week']}) "
                  f"after {_usage['fails']} failures")
             _usage["fails"] = 0
     except urllib.error.HTTPError as e:
-        # 429 = rate-limited (respect Retry-After), 401 = token mid-rotation; both
-        # are transient, so retry soon rather than caching the gap for 5 minutes.
-        wait = _retry_after(e, USAGE_RETRY) if e.code == 429 else USAGE_RETRY
-        _log(f"usage fetch failed: {e}; retry in {wait:.0f}s")
-        _usage["next"] = now + wait
+        if e.code == 401:
+            # Token mid-rotation: the value we just sent is dead. Wait for Claude
+            # Code to rewrite accessToken instead of hammering (cheap file reads
+            # only) -- the old 30s network retry burst is what tripped the 429.
+            _usage["bad_token"] = token
+            _usage["bad_at"] = now
+            _usage["next"] = now + USAGE_TOKEN_POLL
+            _log(f"usage fetch failed: {e}; awaiting token rotation")
+        else:
+            # 429 = rate-limited (respect Retry-After); back off gently.
+            wait = _retry_after(e, USAGE_FAIL_BACKOFF) if e.code == 429 else USAGE_FAIL_BACKOFF
+            _usage["next"] = now + wait
+            _log(f"usage fetch failed: {e}; retry in {wait:.0f}s")
         _usage["fails"] += 1
     except Exception as e:
-        _log(f"usage fetch failed: {e}; retry in {USAGE_RETRY:.0f}s")
-        _usage["next"] = now + USAGE_RETRY
+        _log(f"usage fetch failed: {e}; retry in {USAGE_FAIL_BACKOFF:.0f}s")
+        _usage["next"] = now + USAGE_FAIL_BACKOFF
         _usage["fails"] += 1
     return _usage
 
