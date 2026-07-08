@@ -98,6 +98,30 @@ char  procName[PROC_MAX][16];     // up to 12-char names + NUL
 float procMem[PROC_MAX], procCpu[PROC_MAX];
 int   procCount = 0;
 
+// Recent CPU/RAM history for the faint backdrop behind the page-0 readout.
+// One sample pushed per data line (~1/s); newest drawn at the right edge.
+static const int HIST_N = 104;            // == center sprite width -> one column/px
+uint8_t cpuHist[HIST_N], ramHist[HIST_N];
+int histHead = 0, histCount = 0;          // ring buffer: histHead = next write slot
+void pushHist(uint8_t c, uint8_t r) {
+  cpuHist[histHead] = c; ramHist[histHead] = r;
+  histHead = (histHead + 1) % HIST_N;
+  if (histCount < HIST_N) histCount++;
+}
+
+// Claude usage (session/week) history for the page-1 backdrop. The value only
+// changes every ~15 min, so sample it on a slow 5-min cadence: 104 samples then
+// span ~8.7 h (a full session window and a recent slice of the week).
+uint8_t sessHist[HIST_N], weekHist[HIST_N];
+int usageHead = 0, usageCount = 0;
+uint32_t lastUsagePush = 0;
+static const uint32_t USAGE_HIST_MS = 300000;   // 5 min between usage samples
+void pushUsageHist(uint8_t s, uint8_t w) {
+  sessHist[usageHead] = s; weekHist[usageHead] = w;
+  usageHead = (usageHead + 1) % HIST_N;
+  if (usageCount < HIST_N) usageCount++;
+}
+
 uint16_t zoneColor(float v) {
   if (v < 60) return tft.color565(0, 200, 90);
   if (v < 85) return tft.color565(255, 170, 0);
@@ -144,6 +168,7 @@ void parseLine(const String& line) {
     }
     i = sp + 1;
   }
+  pushHist((uint8_t)round(cpuTarget), (uint8_t)round(ramTarget));   // feed the history backdrop
   lastData = millis(); everConnected = true;
 }
 
@@ -289,13 +314,65 @@ void drawBar(int y, float frac, float hours) {       // inside the center sprite
   }
 }
 
+// Dim zone color (~22% brightness over black == the requested "20% opacity").
+uint16_t histColor(int v) {
+  int r, g, b;
+  if      (v < 60) { r = 0;   g = 200; b = 90; }
+  else if (v < 85) { r = 255; g = 170; b = 0;  }
+  else             { r = 255; g = 60;  b = 60; }
+  const float f = 0.22f;
+  return tft.color565((int)(r * f), (int)(g * f), (int)(b * f));
+}
+
+// Faint history backdrop inside the center sprite: top metric in the top half
+// (baseline mid, growing up), bottom metric in the bottom half (baseline bottom,
+// growing up). Newest sample at the right edge; the sprite is already black-cleared
+// so gaps stay black. kind 0 = CPU/RAM (per-second), 1 = session/week (5-min).
+void drawHistBackdrop(int kind) {
+  uint8_t *topA, *botA; int head, count;
+  if (kind == 1) { topA = sessHist; botA = weekHist; head = usageHead; count = usageCount; }
+  else           { topA = cpuHist;  botA = ramHist;  head = histHead;  count = histCount; }
+  const int w = center.width();                          // 104
+  const int topBase = 50, topH = 49;                     // top metric: y 1..50
+  const int botBase = center.height() - 1, botH = 50;    // bottom metric: y 53..103
+  for (int k = 0; k < count; k++) {
+    int x = w - 1 - k; if (x < 0) break;                 // newest at the right edge
+    int idx = ((head - 1 - k) % HIST_N + HIST_N) % HIST_N;
+    int tv = topA[idx], bv = botA[idx];
+    int th = tv * topH / 100, bh = bv * botH / 100;
+    if (th > 0) center.drawFastVLine(x, topBase - th, th, histColor(tv));
+    if (bh > 0) center.drawFastVLine(x, botBase - bh, bh, histColor(bv));
+  }
+}
+
+// One big Font4 percentage centered at (cx,cy). halo=true draws a 1px dark outline
+// then the colored value on a transparent bg, so it stays legible over the history
+// backdrop; halo=false is the plain opaque-bg draw used on the other pages.
+void drawValue(int cx, int cy, bool ok, bool stale, float v, bool halo) {
+  String s = ok ? String((int)round(v)) + "%" : "--";
+  uint16_t col = (ok && !stale) ? zoneColor(v) : GRAY;
+  center.setFont(&fonts::Font4);
+  if (halo) {
+    center.setTextColor(TFT_BLACK);
+    center.drawString(s, cx - 1, cy); center.drawString(s, cx + 1, cy);
+    center.drawString(s, cx, cy - 1); center.drawString(s, cx, cy + 1);
+    center.setTextColor(col);
+    center.drawString(s, cx, cy);
+  } else {
+    center.setTextColor(col, TFT_BLACK);
+    center.drawString(s, cx, cy);
+  }
+}
+
 // v1stale/v2stale: we HAVE a value but it has gone stale (usage endpoint failing) --
 // keep showing the last number, but in gray, so a frozen reading is obvious.
+// histKind >= 0: draw a faint history backdrop behind the readout (0 = CPU/RAM, 1 = session/week).
 void drawCenter(bool waiting,
                 const char* l1, float v1, bool v1ok,
                 const char* l2, float v2, bool v2ok,
                 float p1 = -1, float p2 = -1, float h1 = -1, float h2 = -1,
-                bool v1stale = false, bool v2stale = false) {
+                bool v1stale = false, bool v2stale = false, int histKind = -1) {
+  const bool hist = histKind >= 0;
   center.fillScreen(TFT_BLACK);
   const int w = center.width() / 2;
   const uint16_t label = tft.color565(150, 150, 160);
@@ -306,17 +383,18 @@ void drawCenter(bool waiting,
     center.drawString("WAITING",  w, w - 9);
     center.drawString("FOR DATA", w, w + 9);
   } else {
-    center.setFont(&fonts::Font2); center.setTextColor(label, TFT_BLACK);
+    if (hist) drawHistBackdrop(histKind);             // faint history behind the readout
+    center.setFont(&fonts::Font2);
+    if (hist) center.setTextColor(label); else center.setTextColor(label, TFT_BLACK);
     center.drawString(l1, w, 14);
-    center.setFont(&fonts::Font4); center.setTextColor((v1ok && !v1stale) ? zoneColor(v1) : GRAY, TFT_BLACK);
-    center.drawString(v1ok ? String((int)round(v1)) + "%" : "--", w, 33);
+    drawValue(w, 33, v1ok, v1stale, v1, hist);
     if (p1 >= 0) drawBar(47, p1, h1);
 
     center.setTextDatum(middle_center);
-    center.setFont(&fonts::Font2); center.setTextColor(label, TFT_BLACK);
+    center.setFont(&fonts::Font2);
+    if (hist) center.setTextColor(label); else center.setTextColor(label, TFT_BLACK);
     center.drawString(l2, w, 63);
-    center.setFont(&fonts::Font4); center.setTextColor((v2ok && !v2stale) ? zoneColor(v2) : GRAY, TFT_BLACK);
-    center.drawString(v2ok ? String((int)round(v2)) + "%" : "--", w, 82);
+    drawValue(w, 82, v2ok, v2stale, v2, hist);
     if (p2 >= 0) drawBar(96, p2, h2);
   }
   center.pushSprite(CX - center.width() / 2, CY - center.height() / 2);
@@ -456,6 +534,14 @@ void loop() {
   // is millis()-rollover safe), then fall back to the waiting screen.
   bool waiting = !everConnected || (millis() - lastData > 10000);
 
+  // Sample Claude usage into the page-1 history backdrop: once as soon as data is
+  // present, then every 5 min (the value only refreshes ~every 15 min host-side).
+  if (sessHave && weekHave && !waiting &&
+      (usageCount == 0 || millis() - lastUsagePush >= USAGE_HIST_MS)) {
+    lastUsagePush = millis();
+    pushUsageHist((uint8_t)round(sessTarget), (uint8_t)round(weekTarget));
+  }
+
   float k = 0.18f;
   cpuDisp  += ((waiting ? 0 : cpuTarget)  - cpuDisp)  * k;
   ramDisp  += ((waiting ? 0 : ramTarget)  - ramDisp)  * k;
@@ -484,7 +570,8 @@ void loop() {
     drawRing(TA_R0,  TA_R1,  sessDisp, sFresh ? zoneColor(sessDisp) : GRAY);
     drawRing(TB_R0,  TB_R1,  weekDisp, wFresh ? zoneColor(weekDisp) : GRAY);
     drawStartTick();
-    drawCenter(waiting, "CPU", cpuDisp, true, "RAM", ramDisp, true);
+    drawCenter(waiting, "CPU", cpuDisp, true, "RAM", ramDisp, true,
+               -1, -1, -1, -1, false, false, /*histKind=*/0);
   } else if (page == 1) {
     drawRing(OUT_R0, OUT_R1, sessDisp, sFresh ? zoneColor(sessDisp) : GRAY);
     drawRing(IN_R0,  IN_R1,  weekDisp, wFresh ? zoneColor(weekDisp) : GRAY);
@@ -494,7 +581,7 @@ void loop() {
     drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
                sOk ? sesspTarget : -1, wOk ? weekpTarget : -1,
                sOk ? sesshVal : -1,    wOk ? weekhVal : -1,
-               sOk && !usageFresh, wOk && !usageFresh);
+               sOk && !usageFresh, wOk && !usageFresh, /*histKind=*/1);
   } else {
     // Page2: only the thin CPU/RAM rings (like the Claude-usage view); all the
     // freed space goes to a bigger top-7 process chart.
