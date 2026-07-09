@@ -65,3 +65,9 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
   path = draw rings directly to `tft` + a small 104×104 center sprite for text.
   To avoid the zero-tick flickering, put it in the **gap between rings** (r 91–95)
   where ring fills never repaint it — not on top of a ring.
+- **`Serial.printf` blocks the loop** on the native USB-CDC: the host holds COM5 open
+  but never reads it, so a print stalls for ~2 s once the TX FIFO fills. That froze the
+  touch poll after every gesture → the unpolled CST816 fired a phantom-touch burst
+  (the real cause of the "ghost taps/holds," not a panel defect; the debounce/lockout
+  band-aids only masked it). Fix: **`Serial.setTxTimeoutMs(0)` in `setup()`** so unread
+  output drops instead of blocking. Keep any per-loop serial output non-blocking.

@@ -510,6 +510,10 @@ void drawBrightnessOverlay() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.setTxTimeoutMs(0);   // never block the loop on serial: the host holds the CDC port
+                              // open but never reads it, so a blocking printf stalls the touch
+                              // poll for ~2s -> the unpolled CST816 fires a phantom burst.
+                              // Drop unread output instead. (Root cause of the ghost taps/holds.)
   prefs.begin("roundtft", false);                  // NVS namespace for settings
   blLevel = prefs.getUChar("bl", 255);             // restore saved brightness
   if (blLevel < BL_MIN) blLevel = BL_MIN;
