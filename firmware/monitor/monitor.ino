@@ -127,6 +127,7 @@ uint16_t zoneColor(float v) {
   return tft.color565(255, 60, 60);
 }
 static const uint16_t GRAY = 0x528A;
+static const uint16_t AMBER = 0xFD40;   // color565(255,170,0); == zoneColor's mid band
 
 // "name:mem:cpu|name:mem:cpu|..." -> the proc* arrays (already past "proc=").
 void parseProc(const String& s) {
@@ -361,11 +362,16 @@ void drawValue(int cx, int cy, bool ok, bool stale, float v, bool halo) {
 // v1stale/v2stale: we HAVE a value but it has gone stale (usage endpoint failing) --
 // keep showing the last number, but in gray, so a frozen reading is obvious.
 // histKind >= 0: draw a faint history backdrop behind the readout (0 = CPU/RAM, 1 = session/week).
+// hint1/hint2 (non-null): draw the compact "stale card" instead of the normal
+// layout -- gray last values + a two-line amber hint (e.g. "OPEN CLAUDE" / "STALE 4h").
+// Used on the usage page when the host's token has gone dead and the fix is a
+// user action (open Claude Code so it refreshes the token). Bars/history suppressed.
 void drawCenter(bool waiting,
                 const char* l1, float v1, bool v1ok,
                 const char* l2, float v2, bool v2ok,
                 float p1 = -1, float p2 = -1, float h1 = -1, float h2 = -1,
-                bool v1stale = false, bool v2stale = false, int histKind = -1) {
+                bool v1stale = false, bool v2stale = false, int histKind = -1,
+                const char* hint1 = nullptr, const char* hint2 = nullptr) {
   const bool hist = histKind >= 0;
   center.fillScreen(TFT_BLACK);
   const int w = center.width() / 2;
@@ -376,6 +382,19 @@ void drawCenter(bool waiting,
     center.setTextColor(tft.color565(120, 120, 120), TFT_BLACK);
     center.drawString("WAITING",  w, w - 9);
     center.drawString("FOR DATA", w, w + 9);
+  } else if (hint1) {
+    // Stale card: six Font2 lines at ~17px pitch (fits the 104px sprite, no
+    // overlap). Values gray (frozen); hint amber (needs your attention).
+    center.setFont(&fonts::Font2);
+    center.setTextColor(label, TFT_BLACK);       center.drawString(l1, w, 9);
+    center.setTextColor(GRAY, TFT_BLACK);
+    center.drawString(v1ok ? String((int)round(v1)) + "%" : "--", w, 26);
+    center.setTextColor(label, TFT_BLACK);       center.drawString(l2, w, 43);
+    center.setTextColor(GRAY, TFT_BLACK);
+    center.drawString(v2ok ? String((int)round(v2)) + "%" : "--", w, 60);
+    center.setTextColor(AMBER, TFT_BLACK);
+    center.drawString(hint1, w, 79);
+    if (hint2) center.drawString(hint2, w, 96);
   } else {
     if (hist) drawHistBackdrop(histKind);             // faint history behind the readout
     center.setFont(&fonts::Font2);
@@ -576,10 +595,22 @@ void loop() {
     drawRing(TA_R0,  TA_R1,  cpuDisp,  pOk ? zoneColor(cpuDisp)  : GRAY);
     drawRing(TB_R0,  TB_R1,  ramDisp,  pOk ? zoneColor(ramDisp)  : GRAY);
     drawStartTick();
-    drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
-               sOk ? sesspTarget : -1, wOk ? weekpTarget : -1,
-               sOk ? sesshVal : -1,    wOk ? weekhVal : -1,
-               sOk && !usageFresh, wOk && !usageFresh, /*histKind=*/1);
+    if ((sOk || wOk) && !usageFresh) {
+      // Usage frozen (dead token / rate-limit storm): show the last values gray
+      // with an actionable amber hint -- opening Claude Code refreshes the token.
+      char ageStr[16];
+      int a = (int)usageAgeTarget;
+      if (a < 5400) snprintf(ageStr, sizeof(ageStr), "STALE %dm", (a + 30) / 60);
+      else          snprintf(ageStr, sizeof(ageStr), "STALE %dh", (a + 1800) / 3600);
+      drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
+                 -1, -1, -1, -1, true, true, /*histKind=*/-1,
+                 "OPEN CLAUDE", ageStr);
+    } else {
+      drawCenter(waiting, "SESSION", sessDisp, sOk, "WEEK", weekDisp, wOk,
+                 sOk ? sesspTarget : -1, wOk ? weekpTarget : -1,
+                 sOk ? sesshVal : -1,    wOk ? weekhVal : -1,
+                 sOk && !usageFresh, wOk && !usageFresh, /*histKind=*/1);
+    }
   } else {
     // Page2: only the thin CPU/RAM rings (like the Claude-usage view); all the
     // freed space goes to a bigger top-7 process chart.
