@@ -39,14 +39,36 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
   triggers at the interactive logon (needs the user session for COM + `.credentials.json`).
 - **Before flashing:** `Stop-ScheduledTask -TaskName 'RoundTFT Monitor'` (it holds COM5);
   resume with `Start-ScheduledTask`. Remove with `host\uninstall-startup.ps1`.
+- A monitor can **detach from the task and survive `Stop-ScheduledTask`** (seen 2026-07-16:
+  a 27 h-old orphan held COM5 *and* double-polled usage, feeding the 429s). `Stop` only
+  kills instances the scheduler still tracks. If COM5 gives `PermissionError` after a
+  stop, check for strays: `Get-CimInstance Win32_Process -Filter "Name='pythonw.exe'"`
+  → `Stop-Process -Id <pid> -Force`. Expect exactly **one** pythonw.
 
 ## Claude usage (session/week %)
 - No official API. Read it from the **undocumented** `GET https://api.anthropic.com/api/oauth/usage`
   (NOT claude.ai — that 403s). Headers: `Authorization: Bearer <token>`,
   `anthropic-beta: oauth-2025-04-20`, `anthropic-version: 2023-06-01`.
-- Token = `claudeAiOauth.accessToken` from `~/.claude/.credentials.json` (re-read
-  each call; Claude Code refreshes it). Response: `five_hour.utilization` (session%),
-  `seven_day.utilization` (week%). Polled every 5 min. May break without notice.
+- Token = `claudeAiOauth.accessToken` from `~/.claude/.credentials.json` (re-read each
+  call). Response: `five_hour.utilization` (session%), `seven_day.utilization` (week%).
+  Polled every 15 min. May break without notice.
+- **accessToken lives only ~8 h and Claude Code alone refreshes it.** That was the real
+  cause of "usage stopped showing": an idle day → 401 forever until you next opened
+  Claude Code. The interleaved 429s were just the endpoint throttling *dead-token*
+  retries — they read like a rate-limit bug for weeks but never were. Don't re-debug
+  the 429s; check the token first (`expiresAt` vs now).
+- The host now runs the **refresh_token grant itself** — `POST https://api.anthropic.com/v1/oauth/token`
+  `{grant_type, refresh_token, client_id: 9d1c250a-e61b-44d9-88ed-5944d1962f5e}` — so usage
+  now survives ~9 days without Claude Code (`refreshTokenExpiresAt`), not 8 h.
+- **The refresh token rotates**: the new one MUST be written back to `.credentials.json`
+  or Claude Code is stranded on a spent token (so "refresh in memory only" is not an
+  option). `_save_creds()` re-reads → merges → keeps a `.bak` → `os.replace()` atomically.
+  Guards: skip if the file was written <120 s ago (Claude Code is live — let it drive),
+  ≥60 s between our own attempts, and a `400/401` whose on-disk refreshToken has since
+  changed = a benign race with Claude Code, not a dead login.
+- Token-endpoint hosts differ from the usage host: `platform.claude.com` **403s
+  (Cloudflare error 1010)** on urllib's default User-Agent, `console.anthropic.com` now
+  **404s**, and **api.anthropic.com works bare**. We use api.anthropic.com + a real UA.
 
 ## 3D stand (`stand/`)
 - Parametric OpenSCAD tilt cradle (`stand.scad` → `stand.stl`). OpenSCAD portable at

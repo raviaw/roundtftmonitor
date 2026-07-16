@@ -131,11 +131,10 @@ def _log(msg: str) -> None:
 # --- Claude usage (undocumented endpoint; may change/break without notice) ---
 CRED_PATH = os.path.expanduser("~/.claude/.credentials.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
-# This endpoint is aggressively rate-limited per token: ~5 requests trip a 429
-# with Retry-After 300, and the budget is *shared* with Claude Code's own usage
-# polling. So poll gently and back off hard -- bursting (the old 30s retry) just
-# starves us into a permanent 429. The firmware grays stale values via usageage=,
-# so a slow refresh is harmless.
+# Poll gently and back off hard: bursting (the old 30s retry) trips a 429 with
+# Retry-After 300. The firmware grays stale values via usageage=, so a slow refresh is
+# harmless. NB most of the 429 storms we chased were really this endpoint throttling
+# *dead-token* retries -- fix the token (below) and they stop.
 USAGE_REFRESH = 900.0   # seconds; re-query after a *successful* fetch (15 min)
 USAGE_FAIL_BACKOFF = 300.0  # seconds; gentle wait after a 429/other failure
 USAGE_RETRY_MAX = 900.0  # cap on any server-supplied Retry-After backoff
@@ -145,13 +144,34 @@ USAGE_401_MAX_WAIT = 900.0  # re-probe the network at most this often while a 40
                             # token persists unchanged (fluke-recovery safety net)
 SESSION_PERIOD = 5 * 3600        # 5-hour rolling window
 WEEK_PERIOD = 7 * 24 * 3600      # nominal 7-day window (tune if it resets sooner)
+
+# --- OAuth token self-refresh ------------------------------------------------
+# accessToken lives ~8 h and only Claude Code ever refreshed it, so a day without
+# Claude Code left us 401ing (and then 429ing, as the endpoint throttles dead-token
+# retries) until the user next opened it. We run the standard refresh_token grant
+# ourselves, against the same endpoint and client id Claude Code uses, so usage
+# survives with Claude Code closed -- now bounded by refreshTokenExpiresAt (~9 days)
+# rather than 8 hours.
+# Host choice: api.anthropic.com, same as USAGE_URL. platform.claude.com sits behind a
+# Cloudflare rule that 403s (error 1010) urllib's default User-Agent, and
+# console.anthropic.com now 404s. We send a real UA regardless, so we don't depend on
+# api.anthropic.com staying exempt from that rule.
+OAUTH_TOKEN_URL = "https://api.anthropic.com/v1/oauth/token"
+OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"  # Claude Code's public client
+OAUTH_UA = "claude-cli/2.0.14 (external, cli)"
+REFRESH_SKEW = 600.0     # refresh once the accessToken has under 10 min of life left
+CRED_ACTIVE_WINDOW = 120.0  # creds written this recently => Claude Code is live and
+                            # rotating them itself; use its token, don't race its refresh
+REFRESH_MIN_INTERVAL = 60.0  # floor between our own refresh attempts (never hammer)
 # "next": monotonic time before which get_claude_usage() serves the cache without
 # hitting the network. Advanced by USAGE_REFRESH on success, USAGE_FAIL_BACKOFF (or
-# the 429 Retry-After) on failure. "bad_token": an accessToken a 401 proved dead --
-# we serve cache (cheap file reads only) until Claude Code rotates it.
+# the 429 Retry-After) on failure. "bad_token": an accessToken a 401 proved dead -- we
+# refresh it ourselves, and only fall back to serving cache (cheap file reads only) if
+# that's impossible. "refresh_at": last refresh attempt, throttled by
+# REFRESH_MIN_INTERVAL.
 _usage = {"sess": None, "week": None, "sessp": None, "weekp": None,
           "sessh": None, "weekh": None, "next": 0.0, "ok_at": None, "fails": 0,
-          "bad_token": None, "bad_at": 0.0}
+          "bad_token": None, "bad_at": 0.0, "refresh_at": -REFRESH_MIN_INTERVAL}
 
 
 def _remaining_seconds(resets_at):
@@ -182,12 +202,128 @@ def find_port() -> str | None:
     return None
 
 
-def _read_token() -> str | None:
+def _read_creds() -> dict | None:
+    """The whole claudeAiOauth blob (accessToken/refreshToken/expiresAt), or None."""
     try:
         with open(CRED_PATH, encoding="utf-8") as fh:
-            return json.load(fh)["claudeAiOauth"]["accessToken"]
+            return json.load(fh)["claudeAiOauth"]
     except Exception:
         return None
+
+
+def _creds_age() -> float:
+    """Seconds since .credentials.json was last written; inf if unreadable. Fresh =>
+    Claude Code is running and refreshing the token itself."""
+    try:
+        return max(0.0, time.time() - os.path.getmtime(CRED_PATH))
+    except OSError:
+        return float("inf")
+
+
+def _expires_in(creds: dict) -> float | None:
+    """Seconds of accessToken life left (negative = already expired); None if absent."""
+    exp = creds.get("expiresAt")
+    if not isinstance(exp, (int, float)):
+        return None
+    return exp / 1000.0 - time.time()   # expiresAt is epoch MILLIseconds
+
+
+def _save_creds(updates: dict) -> None:
+    """Merge `updates` into claudeAiOauth and replace the file atomically, keeping a
+    .bak of the previous contents. Re-reads immediately before writing so we preserve
+    any field (and any concurrent Claude Code edit) we don't own."""
+    with open(CRED_PATH, encoding="utf-8") as fh:
+        blob = json.load(fh)
+    try:
+        with open(CRED_PATH + ".bak", "w", encoding="utf-8") as fh:
+            json.dump(blob, fh, indent=2)
+    except OSError as e:
+        _log(f"credentials backup failed (continuing): {e}")
+    blob.setdefault("claudeAiOauth", {}).update(updates)
+    tmp = CRED_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(blob, fh, indent=2)
+    os.replace(tmp, CRED_PATH)   # atomic: readers see old or new, never a partial file
+
+
+def _refresh_access_token(creds: dict) -> str | None:
+    """OAuth refresh_token grant -> new accessToken, persisted for Claude Code to pick
+    up. The refresh token rotates, so writing the new one back is mandatory: dropping it
+    would strand Claude Code on a spent token. Returns the new access token, or None."""
+    rt = creds.get("refreshToken")
+    if not rt:
+        return None
+    body = json.dumps({
+        "grant_type": "refresh_token",
+        "refresh_token": rt,
+        "client_id": OAUTH_CLIENT_ID,
+    }).encode()
+    req = urllib.request.Request(OAUTH_TOKEN_URL, data=body, method="POST", headers={
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": OAUTH_UA,
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.load(resp)
+    except urllib.error.HTTPError as e:
+        # A rejected grant is usually benign: Claude Code rotated this same refresh token
+        # between our read and our POST, so the token we sent was already spent. Its
+        # replacement is on disk already -- adopt that instead of crying "log in again".
+        if e.code in (400, 401):
+            current = _read_creds() or {}
+            if current.get("refreshToken") not in (None, rt):
+                _log("refresh raced Claude Code's own rotation; adopting its token")
+                return current.get("accessToken")
+        raise
+    at = data.get("access_token")
+    if not at:
+        return None
+    updates = {"accessToken": at}
+    if data.get("refresh_token"):        # rotated -> persist or Claude Code is stranded
+        updates["refreshToken"] = data["refresh_token"]
+    if data.get("expires_in"):
+        updates["expiresAt"] = int((time.time() + float(data["expires_in"])) * 1000)
+    if data.get("scope"):
+        updates["scopes"] = data["scope"].split()
+    _save_creds(updates)
+    return at
+
+
+def _fresh_token() -> str | None:
+    """accessToken with life left in it: refresh it ourselves when it's near expiry and
+    Claude Code isn't around to do it. Never raises -- falls back to whatever's on disk."""
+    creds = _read_creds()
+    if not creds:
+        return None
+    token = creds.get("accessToken")
+    left = _expires_in(creds)
+    if left is None or left > REFRESH_SKEW:
+        return token                      # still good; nothing to do
+    idle = _creds_age()
+    if idle < CRED_ACTIVE_WINDOW:
+        return token                      # Claude Code just wrote these -- let it drive
+    now = time.monotonic()
+    if now - _usage["refresh_at"] < REFRESH_MIN_INTERVAL:
+        return token
+    _usage["refresh_at"] = now
+    try:
+        new = _refresh_access_token(creds)
+    except urllib.error.HTTPError as e:
+        # 400/401 here = the refresh token itself is spent or revoked; only a real
+        # `claude` login can fix that, so say so instead of retrying forever.
+        detail = "refresh token rejected -- run `claude` to sign in again" \
+            if e.code in (400, 401) else f"retry in {REFRESH_MIN_INTERVAL:.0f}s"
+        _log(f"token refresh failed: {e}; {detail}")
+        return token
+    except Exception as e:
+        _log(f"token refresh failed: {e}; retry in {REFRESH_MIN_INTERVAL:.0f}s")
+        return token
+    if new:
+        state = f"expired {-left / 60:.0f} min ago" if left < 0 else f"{left / 60:.0f} min left"
+        _log(f"refreshed accessToken ({state}; Claude Code idle {idle / 3600:.1f} h)")
+        return new
+    return token
 
 
 def _retry_after(err, default):
@@ -201,6 +337,31 @@ def _retry_after(err, default):
     return default
 
 
+def _force_refresh() -> str | None:
+    """Refresh regardless of expiresAt -- for when the server 401s a token that still
+    looked live on paper (clock skew, or a token revoked early). Throttled the same way."""
+    creds = _read_creds()
+    if not creds or _creds_age() < CRED_ACTIVE_WINDOW:
+        return None                      # Claude Code is live; its next write wins
+    now = time.monotonic()
+    if now - _usage["refresh_at"] < REFRESH_MIN_INTERVAL:
+        return None
+    _usage["refresh_at"] = now
+    try:
+        new = _refresh_access_token(creds)
+    except urllib.error.HTTPError as e:
+        detail = "refresh token rejected -- run `claude` to sign in again" \
+            if e.code in (400, 401) else "will retry"
+        _log(f"token refresh failed: {e}; {detail}")
+        return None
+    except Exception as e:
+        _log(f"token refresh failed: {e}; will retry")
+        return None
+    if new:
+        _log("refreshed accessToken after a 401")
+    return new
+
+
 def get_claude_usage() -> dict:
     """Usage % + period-progress % from the OAuth endpoint. Serves a cache until
     _usage["next"]: USAGE_REFRESH after a success, USAGE_FAIL_BACKOFF (or the 429
@@ -212,7 +373,7 @@ def get_claude_usage() -> dict:
     if now < _usage["next"]:
         return _usage
 
-    token = _read_token()  # re-read each time: Claude Code rewrites it on refresh
+    token = _fresh_token()  # re-read each time, and refresh it ourselves if it's stale
     if not token:
         _usage["next"] = now + USAGE_TOKEN_POLL   # creds not ready yet -- look again soon
         return _usage
@@ -249,13 +410,18 @@ def get_claude_usage() -> dict:
             _usage["fails"] = 0
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            # Token mid-rotation: the value we just sent is dead. Wait for Claude
-            # Code to rewrite accessToken instead of hammering (cheap file reads
-            # only) -- the old 30s network retry burst is what tripped the 429.
+            # This exact token is dead. Refresh it ourselves right now; only if that
+            # can't be done (Claude Code mid-rotation, refresh throttled, or the refresh
+            # token itself is spent) do we fall back to waiting for Claude Code to
+            # rewrite it -- cheap file reads, never a network burst, which is what
+            # tripped the 429s.
             _usage["bad_token"] = token
             _usage["bad_at"] = now
-            _usage["next"] = now + USAGE_TOKEN_POLL
-            _log(f"usage fetch failed: {e}; awaiting token rotation")
+            if _force_refresh():
+                _usage["next"] = now       # new token in hand -> retry on the next tick
+            else:
+                _usage["next"] = now + USAGE_TOKEN_POLL
+                _log(f"usage fetch failed: {e}; awaiting token rotation")
         else:
             # 429 = rate-limited (respect Retry-After); back off gently.
             wait = _retry_after(e, USAGE_FAIL_BACKOFF) if e.code == 429 else USAGE_FAIL_BACKOFF
