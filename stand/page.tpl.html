@@ -1,0 +1,727 @@
+<title>Tilt cradle — drawing sheet</title>
+
+<style>
+  /* ---- tokens ------------------------------------------------------- */
+  :root {
+    --paper:      #F6F5F1;
+    --panel:      #FCFBF7;
+    --ink:        #1F211C;
+    --ink-2:      #5B5F54;
+    --ink-3:      #8A8D80;
+    --gold:       #8A6710;
+    --gold-fill:  #C9A233;
+    --ok:         #3D6B4C;
+    --caution:    #A5462B;
+    --rule:       #D6D4C7;
+    --rule-2:     #ADAB9C;
+    --hatch:      #B9B7A6;
+    --shell-tint: rgba(201,162,51,.16);
+    --shadow:     0 1px 0 rgba(31,33,28,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #191B17;
+      --panel:      #21241E;
+      --ink:        #E6E5D9;
+      --ink-2:      #A0A294;
+      --ink-3:      #767969;
+      --gold:       #D9A93C;
+      --gold-fill:  #E5C066;
+      --ok:         #82B48F;
+      --caution:    #E08A6B;
+      --rule:       #34372F;
+      --rule-2:     #4E5247;
+      --hatch:      #4A4E43;
+      --shell-tint: rgba(229,192,102,.14);
+      --shadow:     none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #191B17;
+    --panel:      #21241E;
+    --ink:        #E6E5D9;
+    --ink-2:      #A0A294;
+    --ink-3:      #767969;
+    --gold:       #D9A93C;
+    --gold-fill:  #E5C066;
+    --ok:         #82B48F;
+    --caution:    #E08A6B;
+    --rule:       #34372F;
+    --rule-2:     #4E5247;
+    --hatch:      #4A4E43;
+    --shell-tint: rgba(229,192,102,.14);
+    --shadow:     none;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F5F1;
+    --panel:      #FCFBF7;
+    --ink:        #1F211C;
+    --ink-2:      #5B5F54;
+    --ink-3:      #8A8D80;
+    --gold:       #8A6710;
+    --gold-fill:  #C9A233;
+    --ok:         #3D6B4C;
+    --caution:    #A5462B;
+    --rule:       #D6D4C7;
+    --rule-2:     #ADAB9C;
+    --hatch:      #B9B7A6;
+    --shell-tint: rgba(201,162,51,.16);
+    --shadow:     0 1px 0 rgba(31,33,28,.05);
+  }
+
+  /* mechanical drawings are lettered in one uniform face (ISO 3098);
+     the sheet follows suit, with a humanist sans only for running prose. */
+  :root {
+    --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas,
+            "SF Mono", Menlo, monospace;
+    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+            "Helvetica Neue", sans-serif;
+  }
+
+  /* ---- theme-swapped plates ----------------------------------------- */
+  .on-light { display: block; }
+  .on-dark  { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .on-light { display: none; }
+    .on-dark  { display: block; }
+  }
+  :root[data-theme="dark"]  .on-light { display: none; }
+  :root[data-theme="dark"]  .on-dark  { display: block; }
+  :root[data-theme="light"] .on-light { display: block; }
+  :root[data-theme="light"] .on-dark  { display: none; }
+
+  /* ---- sheet --------------------------------------------------------- */
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: clamp(18px, 4vw, 46px) clamp(14px, 3vw, 34px) 64px;
+  }
+  .frame {
+    border: 1px solid var(--rule-2);
+    outline: 3px double var(--rule);
+    outline-offset: 4px;
+    background: var(--panel);
+    padding: clamp(16px, 3vw, 34px);
+  }
+
+  /* ---- title block ---------------------------------------------------- */
+  .tb-name {
+    font-size: clamp(22px, 3.6vw, 33px);
+    font-weight: 700;
+    letter-spacing: -.015em;
+    line-height: 1.14;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .tb-sub {
+    font-family: var(--sans);
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 12px 0 0;
+    font-size: 15.5px;
+    line-height: 1.62;
+  }
+  .tb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 0;
+    margin-top: 26px;
+    border: 1px solid var(--rule);
+    border-bottom: 0;
+  }
+  .tb-cell {
+    border-bottom: 1px solid var(--rule);
+    border-right: 1px solid var(--rule);
+    padding: 9px 12px 10px;
+  }
+  .tb-cell:last-child { border-right: 0; }
+  .tb-k {
+    display: block;
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .tb-v { display: block; font-size: 14px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  /* ---- section headings ----------------------------------------------- */
+  section { margin-top: clamp(38px, 6vw, 60px); }
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 1px solid var(--rule-2);
+    padding-bottom: 8px;
+    margin-bottom: 22px;
+  }
+  .head h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+  }
+  .head .tag {
+    margin-left: auto;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  p.prose {
+    font-family: var(--sans);
+    max-width: 66ch;
+    color: var(--ink-2);
+    font-size: 15.5px;
+    line-height: 1.65;
+  }
+
+  /* ---- section drawing ------------------------------------------------- */
+  .drawing { overflow-x: auto; padding-bottom: 4px; }
+  .drawing svg { display: block; min-width: 620px; width: 100%; height: auto; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 26px;
+    margin-top: 16px;
+    font-size: 12px;
+    letter-spacing: .04em;
+    color: var(--ink-2);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { width: 22px; height: 12px; border: 1px solid var(--ink); display: inline-block; }
+  .sw.stand { background:
+      repeating-linear-gradient(45deg, var(--hatch) 0 1px, transparent 1px 6px); }
+  .sw.shell { background: var(--shell-tint); border-color: var(--gold); border-style: dashed; }
+
+  /* ---- view plates ------------------------------------------------------ */
+  .plates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 18px;
+  }
+  figure.plate { margin: 0; }
+  .plate .img {
+    border: 1px solid var(--rule-2);
+    line-height: 0;
+    box-shadow: var(--shadow);
+  }
+  .plate img { width: 100%; height: auto; }
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  figcaption b { color: var(--ink); font-weight: 700; }
+
+  /* ---- schedule ---------------------------------------------------------- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.5px; }
+  caption { caption-side: bottom; text-align: left; padding-top: 12px;
+            font-size: 12px; color: var(--ink-3); }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); }
+  thead th {
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 500; border-bottom-color: var(--rule-2);
+  }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.what { font-family: var(--sans); color: var(--ink-2); font-size: 14px; }
+  tr.flag td { background: color-mix(in srgb, var(--caution) 7%, transparent); }
+
+  .chip {
+    display: inline-block; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; padding: 2px 8px 3px;
+    border: 1px solid currentColor; white-space: nowrap;
+  }
+  .chip.measured { color: var(--ok); }
+  .chip.verify   { color: var(--caution); font-weight: 700; }
+  .chip.derived  { color: var(--ink-3); }
+
+  /* ---- verification ------------------------------------------------------ */
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 16px; }
+  .check { border: 1px solid var(--rule); border-left: 3px solid var(--ok); padding: 13px 15px 15px; }
+  .check .val { font-size: 25px; font-weight: 700; font-variant-numeric: tabular-nums;
+                letter-spacing: -.02em; color: var(--ok); }
+  .check .lbl { font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+                color: var(--ink-3); margin-top: 5px; }
+  .check .note { font-family: var(--sans); font-size: 13px; color: var(--ink-2);
+                 margin-top: 8px; line-height: 1.5; }
+
+  /* ---- notes -------------------------------------------------------------- */
+  .notes { display: grid; gap: 22px; }
+  .note-item { border-top: 1px solid var(--rule); padding-top: 14px; }
+  .note-item h3 {
+    margin: 0 0 7px; font-size: 12px; letter-spacing: .12em;
+    text-transform: uppercase; font-weight: 700;
+  }
+  .note-item p { margin: 0; font-family: var(--sans); color: var(--ink-2);
+                 font-size: 15px; line-height: 1.64; max-width: 68ch; }
+  .note-item + .note-item { margin-top: 0; }
+  code {
+    font-family: var(--mono); font-size: .92em;
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+    padding: 1px 5px; border-radius: 2px;
+  }
+  .cmd {
+    margin: 0; padding: 12px 14px; border: 1px solid var(--rule);
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+    overflow-x: auto; font-size: 12.5px; line-height: 1.75; color: var(--ink-2);
+  }
+  .cmd b { color: var(--ink); font-weight: 400; }
+
+  footer {
+    margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--rule-2);
+    display: flex; flex-wrap: wrap; gap: 6px 24px;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  }
+  a { color: var(--gold); }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="sheet">
+<div class="frame">
+
+  <header>
+    <h1 class="tb-name">Desk tilt cradle — GUITION ESP32-2424S012</h1>
+    <p class="tb-sub">
+      A printed cradle that holds the round display in the plastic shell it ships
+      in, leaning it back toward a seated viewer. One solid piece, prints flat on
+      its base, no fasteners. The shell drops in from the back and lifts straight
+      out again.
+    </p>
+
+    <div class="tb-grid">
+      <div class="tb-cell"><span class="tb-k">Source</span><span class="tb-v">stand.scad</span></div>
+      <div class="tb-cell"><span class="tb-k">Units</span><span class="tb-v">mm</span></div>
+      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">52 × 62 × 51.9</span></div>
+      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">24 344 mm³</span></div>
+      <div class="tb-cell"><span class="tb-k">Material</span><span class="tb-v">PLA / PETG</span></div>
+      <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">20°</span></div>
+      <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">shelled unit</span></div>
+      <div class="tb-cell"><span class="tb-k">Date</span><span class="tb-v">2026-08-13</span></div>
+    </div>
+  </header>
+
+  <!-- ================= SECTION DRAWING ================= -->
+  <section>
+    <div class="head">
+      <h2>Section through the seat</h2>
+      <span class="tag">Scale 11 px / mm</span>
+    </div>
+
+    <p class="prose">
+      This is the whole design in one view. The shell is a rounded pebble, so a
+      plain bore would touch it on a single line and let it rock. Instead the
+      bore is cut wider than the shell and a <b>front lip</b> closes in over it:
+      the shell slides in from the back and stops when its face meets that lip.
+      Because the cradle leans back 20°, gravity presses it onto the lip rather
+      than out of it — no clip, no clamp, and it still lifts out by hand.
+    </p>
+
+    <div class="drawing">
+      <svg viewBox="0 0 820 336" role="img" aria-labelledby="secT secD">
+        <title id="secT">Cross-section through the cradle seat</title>
+        <desc id="secD">
+          The ring wall in section with the display shell shown seated in it.
+          The front lip narrows the opening to 38.0 mm, stopping the 40.5 mm
+          shell, which is held in a 41.0 mm bore 10 mm deep and stands about
+          2 mm proud at the back.
+        </desc>
+
+        <defs>
+          <pattern id="hatchA" width="7" height="7" patternUnits="userSpaceOnUse"
+                   patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="1.1"/>
+          </pattern>
+          <marker id="arw" viewBox="0 0 10 10" refX="9.4" refY="5"
+                  markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+            <path d="M0.6 1.2 L10 5 L0.6 8.8 Z" fill="var(--ink-2)"/>
+          </marker>
+          <marker id="arwC" viewBox="0 0 10 10" refX="9.4" refY="5"
+                  markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+            <path d="M0.6 1.2 L10 5 L0.6 8.8 Z" fill="var(--caution)"/>
+          </marker>
+          <marker id="dot" viewBox="0 0 6 6" refX="3" refY="3"
+                  markerWidth="5" markerHeight="5">
+            <circle cx="3" cy="3" r="2.4" fill="var(--ink-2)"/>
+          </marker>
+        </defs>
+
+        <g font-family="ui-monospace, Consolas, monospace" font-size="13.5">
+
+          <!-- centreline (axis of revolution) -->
+          <line x1="380" y1="40" x2="380" y2="322" stroke="var(--ink-3)"
+                stroke-width="1" stroke-dasharray="16 4 2.5 4"/>
+
+          <!-- shell, drawn as a reference part: dashed outline, tinted -->
+          <path d="M195.75 106.78 L564.25 106.78
+                   A 38.5 38.5 0 0 1 602.75 145.28
+                   L602.75 189.28
+                   A 38.5 38.5 0 0 1 564.25 227.78
+                   L195.75 227.78
+                   A 38.5 38.5 0 0 1 157.25 189.28
+                   L157.25 145.28
+                   A 38.5 38.5 0 0 1 195.75 106.78 Z"
+                fill="var(--shell-tint)" stroke="var(--gold)" stroke-width="1.5"
+                stroke-dasharray="7 3.5"/>
+          <text x="300" y="172" fill="var(--gold)" font-size="12"
+                letter-spacing="1.4">SHELL (REF)</text>
+
+          <!-- cradle ring, cut both sides of the axis -->
+          <g fill="url(#hatchA)" stroke="var(--ink)" stroke-width="1.7"
+             stroke-linejoin="round">
+            <path d="M589 96 L636.3 96 L636.3 206 L616.5 206
+                     L605.5 195 L605.5 115.8 L589 115.8 Z"/>
+            <path d="M171 96 L123.7 96 L123.7 206 L143.5 206
+                     L154.5 195 L154.5 115.8 L171 115.8 Z"/>
+          </g>
+
+          <!-- ===== dimensions ===== -->
+          <g stroke="var(--ink-2)" stroke-width="1" fill="none">
+            <!-- aperture 38.0 (above) : the one unverified dimension -->
+            <g stroke="var(--caution)">
+              <line x1="171" y1="92" x2="171" y2="50"/>
+              <line x1="589" y1="92" x2="589" y2="50"/>
+              <line x1="171" y1="58" x2="589" y2="58"
+                    marker-start="url(#arwC)" marker-end="url(#arwC)"/>
+            </g>
+            <!-- shell diameter 40.5 (below) -->
+            <line x1="157.25" y1="232" x2="157.25" y2="274"/>
+            <line x1="602.75" y1="232" x2="602.75" y2="274"/>
+            <line x1="157.25" y1="266" x2="602.75" y2="266"
+                  marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <!-- bore 41.0 (below) -->
+            <line x1="154.5" y1="210" x2="154.5" y2="306"/>
+            <line x1="605.5" y1="210" x2="605.5" y2="306"/>
+            <line x1="154.5" y1="298" x2="605.5" y2="298"
+                  marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <!-- shell thickness 11.0 (left) -->
+            <line x1="119" y1="106.78" x2="94" y2="106.78"/>
+            <line x1="153" y1="227.78" x2="94" y2="227.78"/>
+            <line x1="100" y1="106.78" x2="100" y2="227.78"
+                  marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <!-- ring depth 10.0 (right) -->
+            <line x1="640" y1="96" x2="682" y2="96"/>
+            <line x1="640" y1="206" x2="682" y2="206"/>
+            <line x1="676" y1="96" x2="676" y2="206"
+                  marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <!-- leaders -->
+            <path d="M598 106 L700 72" marker-start="url(#dot)"/>
+            <path d="M622 168 L700 140" marker-start="url(#dot)"/>
+            <path d="M586 218 L700 248" marker-start="url(#dot)"/>
+          </g>
+
+          <g fill="var(--ink)">
+            <text x="380" y="50" text-anchor="middle" fill="var(--caution)"
+                  font-weight="700">⌀38.0 *</text>
+            <text x="380" y="260" text-anchor="middle">⌀40.5</text>
+            <text x="380" y="292" text-anchor="middle">⌀41.0</text>
+            <text transform="translate(88,167) rotate(-90)" text-anchor="middle">11.0</text>
+            <text transform="translate(664,151) rotate(-90)" text-anchor="middle">10.0</text>
+            <text x="706" y="70" font-size="12.5">1.8 front lip</text>
+            <text x="706" y="138" font-size="12.5">2.8 wall</text>
+            <text x="706" y="246" font-size="12.5">≈2.0 proud</text>
+            <text x="706" y="262" font-size="11" fill="var(--ink-3)">grip to remove</text>
+          </g>
+
+          <g fill="var(--ink-3)" font-size="11" letter-spacing="1.6">
+            <text x="123.7" y="86">SCREEN SIDE</text>
+            <text x="123.7" y="322">SHELL ENTERS FROM THIS FACE</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw stand"></i> Printed cradle, in section</span>
+      <span><i class="sw shell"></i> Display shell, reference only</span>
+      <span style="color:var(--caution)">* verify against the glass diameter before printing</span>
+    </div>
+
+    <p class="prose" style="margin-top:18px">
+      The USB-C notch is not in this cutting plane — it is cut through the rim
+      90° round, on the viewer's left.
+    </p>
+  </section>
+
+  <!-- ================= VIEWS ================= -->
+  <section>
+    <div class="head">
+      <h2>Views</h2>
+      <span class="tag">Rendered from stand.scad</span>
+    </div>
+
+    <div class="plates">
+      <figure class="plate">
+        <div class="img">
+          <img class="on-light" src="{{ISO_LIGHT}}" alt="Isometric view of the cradle, seen from the front left.">
+          <img class="on-dark"  src="{{ISO_DARK}}"  alt="Isometric view of the cradle, seen from the front left.">
+        </div>
+        <figcaption><b>Isometric</b><span>from front left</span></figcaption>
+      </figure>
+
+      <figure class="plate">
+        <div class="img">
+          <img class="on-light" src="{{FRONT_LIGHT}}" alt="Front elevation showing the ring aperture and the USB-C notch on the left.">
+          <img class="on-dark"  src="{{FRONT_DARK}}"  alt="Front elevation showing the ring aperture and the USB-C notch on the left.">
+        </div>
+        <figcaption><b>Front</b><span>notch at left</span></figcaption>
+      </figure>
+
+      <figure class="plate">
+        <div class="img">
+          <img class="on-light" src="{{SIDE_LIGHT}}" alt="Side elevation showing the 20 degree lean and the back leg.">
+          <img class="on-dark"  src="{{SIDE_DARK}}"  alt="Side elevation showing the 20 degree lean and the back leg.">
+        </div>
+        <figcaption><b>Side</b><span>20° lean, back leg</span></figcaption>
+      </figure>
+
+      <figure class="plate">
+        <div class="img">
+          <img class="on-light" src="{{TOP_LIGHT}}" alt="Plan view looking down into the pocket.">
+          <img class="on-dark"  src="{{TOP_DARK}}"  alt="Plan view looking down into the pocket.">
+        </div>
+        <figcaption><b>Plan</b><span>into the pocket</span></figcaption>
+      </figure>
+
+      <figure class="plate" style="grid-column: 1 / -1; max-width: 560px;">
+        <div class="img">
+          <img class="on-light" src="{{FIT_LIGHT}}" alt="The cradle with a stand-in for the display shell seated in it.">
+          <img class="on-dark"  src="{{FIT_DARK}}"  alt="The cradle with a stand-in for the display shell seated in it.">
+        </div>
+        <figcaption><b>Fit check</b><span>shell stand-in seated</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= SCHEDULE ================= -->
+  <section>
+    <div class="head">
+      <h2>Dimension schedule</h2>
+      <span class="tag">Parameters in stand.scad</span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>
+          Measured = taken off the shell with calipers. Derived = computed from
+          the measured values. Design = chosen, adjust freely.
+        </caption>
+        <thead>
+          <tr><th>Parameter</th><th>Value</th><th>Feature</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>disc_d</td><td class="num">40.5 mm</td>
+            <td class="what">Shell diameter at its widest — the equator</td>
+            <td><span class="chip measured">Measured</span></td>
+          </tr>
+          <tr>
+            <td>disc_t</td><td class="num">11 mm</td>
+            <td class="what">Shell thickness, front to back</td>
+            <td><span class="chip measured">Measured</span></td>
+          </tr>
+          <tr class="flag">
+            <td>aperture</td><td class="num">38.0 mm</td>
+            <td class="what">Front lip bore — the ledge the shell rests on. Must
+              clear the black glass and land on the plastic rim.</td>
+            <td><span class="chip verify">Verify</span></td>
+          </tr>
+          <tr>
+            <td>fit</td><td class="num">0.5 mm</td>
+            <td class="what">Diametral clearance on the bore</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>bore</td><td class="num">41.0 mm</td>
+            <td class="what">Pocket bore, disc_d + fit</td>
+            <td><span class="chip derived">Derived</span></td>
+          </tr>
+          <tr>
+            <td>front_thick</td><td class="num">1.8 mm</td>
+            <td class="what">Thickness of the front lip</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>ring_d</td><td class="num">10.0 mm</td>
+            <td class="what">Ring depth. Less than disc_t, so the shell stands
+              proud at the back and can be pushed out.</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>wall</td><td class="num">2.8 mm</td>
+            <td class="what">Ring wall thickness</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>lead_in</td><td class="num">1.0 mm</td>
+            <td class="what">45° chamfer at the back opening, to start the shell square</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>port_angle</td><td class="num">90°</td>
+            <td class="what">USB-C notch position — 0 is bottom, 90 is the viewer's left</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>cable_w</td><td class="num">16 mm</td>
+            <td class="what">Notch width, sized for a right-angle plug's moulded body</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>tilt</td><td class="num">20°</td>
+            <td class="what">Lean back from vertical</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>place_z</td><td class="num">28 mm</td>
+            <td class="what">Cradle centre height. Below about 25.4 the ring's
+              back-bottom edge drops through the build plate.</td>
+            <td><span class="chip derived">Derived</span></td>
+          </tr>
+          <tr>
+            <td>base</td><td class="num">52 × 62 × 4.5</td>
+            <td class="what">Base plate, shifted rearward under the lean</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= VERIFICATION ================= -->
+  <section>
+    <div class="head">
+      <h2>Verification</h2>
+      <span class="tag">Measured off the model, not eyeballed</span>
+    </div>
+
+    <p class="prose" style="margin-top:-4px;margin-bottom:20px">
+      A stand-in for the shell is intersected with the model and the overlap
+      volume measured. Anything above zero means the shell is fouling something.
+      This is worth re-running after any change to the seat or the stance.
+    </p>
+
+    <div class="checks">
+      <div class="check">
+        <div class="val">0.00</div>
+        <div class="lbl">mm³ interference</div>
+        <div class="note">Pure tangential contact. No clash with the ring, the
+          leg, or the base.</div>
+      </div>
+      <div class="check">
+        <div class="val">2</div>
+        <div class="lbl">CGAL volumes</div>
+        <div class="note">One solid plus the surrounding void — a single body,
+          not fragments that happen to touch.</div>
+      </div>
+      <div class="check">
+        <div class="val">0.00</div>
+        <div class="lbl">mm bounding box floor</div>
+        <div class="note">Nothing hangs below the build plate; the base sits
+          flat.</div>
+      </div>
+      <div class="check">
+        <div class="val">≈2.0</div>
+        <div class="lbl">mm shell stands proud</div>
+        <div class="note">Enough of the back edge to grip and push the shell
+          back out.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= NOTES ================= -->
+  <section>
+    <div class="head">
+      <h2>Design notes</h2>
+      <span class="tag">Why it is shaped this way</span>
+    </div>
+
+    <div class="notes">
+      <div class="note-item">
+        <h3>A lip, not a cone</h3>
+        <p>
+          The first attempt seated the shell in a shallow cone, wedging it at its
+          equator. That was abandoned: where a cone grips depends on how the
+          shell's rim curves, which cannot be measured off a photograph, and the
+          first test drove the shell 1208 mm³ into the cone wall. A lip does not
+          care about the rim profile — it stops the shell in the same place
+          whatever the rim does.
+        </p>
+      </div>
+
+      <div class="note-item">
+        <h3>The USB-C exits sideways</h3>
+        <p>
+          The port is on the shell's rim, and a right-angle plug needs about
+          10 mm of radial room. At the bottom of the ring that room is below the
+          desk, so the notch is cut through the side instead, where it costs
+          nothing and leaves the load-bearing bottom arc of the ring intact.
+          Rotate the UI in firmware to match.
+        </p>
+      </div>
+
+      <div class="note-item">
+        <h3>Two faults the numbers caught</h3>
+        <p>
+          The interference check found what looking at renders did not. First,
+          the base slab was filling the bottom of the pocket — the ring merges
+          into the base, so the seat has to be cut <em>after</em> the base and
+          leg are unioned on, not before. Second, the ring's back-bottom edge hung
+          1.31 mm below the build plate, so the part would not have sat flat.
+        </p>
+      </div>
+
+      <div class="note-item">
+        <h3>Printing</h3>
+        <p>
+          Print base-down as oriented, in PLA or PETG, 3 perimeters and about
+          15% infill. The underside of the leaning cradle is a mild overhang —
+          enable light supports touching the build plate only if your slicer
+          flags it; the 20° lean keeps overhangs modest. A brim helps the small
+          footprint stay put.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= COMMANDS ================= -->
+  <section>
+    <div class="head">
+      <h2>Regenerating this</h2>
+      <span class="tag">OpenSCAD 2021.01</span>
+    </div>
+    <pre class="cmd"><b>openscad -o stand.stl stand.scad</b>
+   export the printable body — a clean run reports "Volumes: 2"
+
+<b>openscad -D show_pebble=true -o fit_check.png stand.scad</b>
+   draw the shell stand-in seated in the cradle
+
+<b>openscad -D show_pebble=true -D section=true -o fit_check.png stand.scad</b>
+   the same, sliced in half through the seat</pre>
+  </section>
+
+  <footer>
+    <span>Sheet 1 of 1</span>
+    <span>Part: roundtft / stand</span>
+    <span>Source: stand.scad</span>
+    <span>All dimensions mm</span>
+  </footer>
+
+</div>
+</div>
