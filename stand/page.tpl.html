@@ -308,10 +308,10 @@
     <div class="tb-grid">
       <div class="tb-cell"><span class="tb-k">Source</span><span class="tb-v">stand.scad</span></div>
       <div class="tb-cell"><span class="tb-k">Units</span><span class="tb-v">mm</span></div>
-      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">52 × 62 × 51.9</span></div>
-      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">24 344 mm³</span></div>
+      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">52 × 62 × 47.0</span></div>
+      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">23 583 mm³</span></div>
       <div class="tb-cell"><span class="tb-k">Material</span><span class="tb-v">PLA / PETG</span></div>
-      <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">20°</span></div>
+      <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">38°</span></div>
       <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">shelled unit</span></div>
       <div class="tb-cell"><span class="tb-k">Date</span><span class="tb-v">2026-08-13</span></div>
     </div>
@@ -329,7 +329,7 @@
       plain bore would touch it on a single line and let it rock. Instead the
       bore is cut wider than the shell and a <b>front lip</b> closes in over it:
       the shell slides in from the back and stops when its face meets that lip.
-      Because the cradle leans back 20°, gravity presses it onto the lip rather
+      Because the cradle leans back 38°, gravity presses it onto the lip rather
       than out of it — no clip, no clamp, and it still lifts out by hand.
     </p>
 
@@ -488,7 +488,7 @@
           <img class="on-light" src="{{SIDE_LIGHT}}" alt="Side elevation showing the 20 degree lean and the back leg.">
           <img class="on-dark"  src="{{SIDE_DARK}}"  alt="Side elevation showing the 20 degree lean and the back leg.">
         </div>
-        <figcaption><b>Side</b><span>20° lean, back leg</span></figcaption>
+        <figcaption><b>Side</b><span>38° lean, back leg</span></figcaption>
       </figure>
 
       <figure class="plate">
@@ -584,14 +584,21 @@
             <td><span class="chip derived">Design</span></td>
           </tr>
           <tr>
-            <td>tilt</td><td class="num">20°</td>
+            <td>tilt</td><td class="num">38°</td>
             <td class="what">Lean back from vertical</td>
             <td><span class="chip derived">Design</span></td>
           </tr>
           <tr>
-            <td>place_z</td><td class="num">28 mm</td>
-            <td class="what">Cradle centre height. Below about 25.4 the ring's
-              back-bottom edge drops through the build plate.</td>
+            <td>merge</td><td class="num">2.0 mm</td>
+            <td class="what">How far the ring's lowest edge sinks into the base,
+              so the two fuse</td>
+            <td><span class="chip derived">Design</span></td>
+          </tr>
+          <tr>
+            <td>place_z</td><td class="num">27.0 mm</td>
+            <td class="what">Cradle centre height — computed from tilt, never
+              hard-coded. The ring leans, so its back-bottom edge hangs lowest;
+              this lands that edge <code>merge</code> below the base's top face.</td>
             <td><span class="chip derived">Derived</span></td>
           </tr>
           <tr>
@@ -631,10 +638,11 @@
           not fragments that happen to touch.</div>
       </div>
       <div class="check">
-        <div class="val">0.00</div>
-        <div class="lbl">mm bounding box floor</div>
-        <div class="note">Nothing hangs below the build plate; the base sits
-          flat.</div>
+        <div class="val">2545</div>
+        <div class="lbl">mm³ in the lowest 0.8 mm</div>
+        <div class="note">Matches the base footprint exactly, so the whole plate
+          is on the bed. A bounding-box check alone said the same thing while
+          the plate was floating.</div>
       </div>
       <div class="check">
         <div class="val">≈2.0</div>
@@ -677,13 +685,26 @@
       </div>
 
       <div class="note-item">
-        <h3>Two faults the numbers caught</h3>
+        <h3>Three faults the numbers caught</h3>
         <p>
-          The interference check found what looking at renders did not. First,
-          the base slab was filling the bottom of the pocket — the ring merges
-          into the base, so the seat has to be cut <em>after</em> the base and
-          leg are unioned on, not before. Second, the ring's back-bottom edge hung
-          1.31 mm below the build plate, so the part would not have sat flat.
+          Measuring found what looking at renders did not. The base slab was
+          filling the bottom of the pocket — the ring merges into the base, so
+          the seat has to be cut <em>after</em> the base and leg are unioned on,
+          not before. The ring's back-bottom edge hung 1.31 mm below the build
+          plate. And the base plate itself was floating 2.25 mm off the plate,
+          leaving the part balanced on an 18 × 8 mm bar at the back: the plate
+          was being lifted by half its thickness as though it were centred on
+          the origin, when it was already built up from it.
+        </p>
+      </div>
+
+      <div class="note-item">
+        <h3>The stance is derived, not typed in</h3>
+        <p>
+          Lean the cradle further and its lowest point moves, which is how it
+          ended up under the build plate the first time. So the cradle's height
+          is now computed from the lean angle rather than written down beside it
+          — change <code>tilt</code> alone and the geometry follows.
         </p>
       </div>
 
@@ -693,7 +714,8 @@
           Print base-down as oriented, in PLA or PETG, 3 perimeters and about
           15% infill. The underside of the leaning cradle is a mild overhang —
           enable light supports touching the build plate only if your slicer
-          flags it; the 20° lean keeps overhangs modest. A brim helps the small
+          flags it; at 38° the underside is a real overhang, though still inside the
+          45° most printers manage unsupported. A brim helps the small
           footprint stay put.
         </p>
       </div>

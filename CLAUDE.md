@@ -82,9 +82,15 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
   shell's rim curvature, which can't be measured off a photo. USB-C exits
   **sideways** (`port_angle`, default 90 = viewer's left) — a right-angle plug
   needs ~10 mm radially and at the bottom that lands below the desk.
+- Leans back **38°**; `place_z` is **derived** from `tilt` (don't hard-code it —
+  leaning moves the ring's lowest edge, which once put the part under the plate).
 - Verify seat changes numerically, not by eye: intersect the model with the
   `seated_pebble()` stand-in and measure the overlap volume (want **0**). Cut the
   seat **after** unioning base+leg, or the base slab fills the pocket.
+- **A `z=0` bounding box does NOT mean it sits flat.** The base plate floated
+  2.25 mm for months (lifted by `base_t/2` though `rrect()` already builds up
+  from 0) with the part balanced on one small bar — bbox still read 0. Check by
+  intersecting a thin bottom slab and comparing to the base footprint area.
 
 ## Gotchas learned
 - OpenSCAD CGAL **"Volumes: 2" = one solid + surrounding void = a single body**

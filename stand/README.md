@@ -33,7 +33,7 @@ widest (its equator), **11 mm** thick, domed glass front, flat-ish back, and the
 **USB-C port on the rim**.
 
 ## What it is
-A ring cradle leaning back **20°** toward a seated viewer, on a rearward base
+A ring cradle leaning back **38°** toward a seated viewer, on a rearward base
 with a back leg. Single solid piece, prints flat on the base.
 
 The seat is a **straight bore plus a front lip**. The shell drops in from the
@@ -55,8 +55,8 @@ Set `port_angle` to move it: `0` = bottom, **`90` = viewer's left (default)**,
 `270` = viewer's right. **Rotate the UI in firmware to match.**
 
 ## Size
-- Footprint **52 × 62 mm**, height **~52 mm**
-- ~24 cm³ (~30 g PLA solid; well under that at normal infill)
+- Footprint **52 × 62 mm**, height **~47 mm**
+- ~23.6 cm³ (~29 g PLA solid; well under that at normal infill)
 
 ## ⚠️ The one dimension still unverified
 `aperture` (default **38.0 mm**) is the front lip's bore. It must clear the
@@ -65,6 +65,12 @@ diameter and keep `aperture` at least 0.5 mm larger. Too small and the lip
 creeps over the screen edge; too large and it loses its grip on the rim.
 
 `disc_d` (40.5) and `disc_t` (11) are measured and confirmed.
+
+## Changing the lean
+Set `tilt` (currently **38°**) and re-render — nothing else needs touching.
+`place_z` is *derived* from it, because leaning the cradle moves its lowest
+point; a hard-coded height is how the part once ended up below the build plate.
+Re-run the fit check afterwards.
 
 ## Checking the fit before you print
 `stand.scad` can draw a stand-in for the shell seated in the cradle:
@@ -78,10 +84,20 @@ corner radius. It affects **the check only, never the printed part**.
 
 The seat was verified by intersecting that stand-in with the model and measuring
 the overlap volume — **0.00 mm³**, i.e. pure tangential contact, no clash with
-the ring, leg, or base. That check caught two real faults: the base slab filling
-the bottom of the pocket (the seat has to be cut *after* the base and leg are
-unioned on), and the ring's back-bottom edge hanging 1.3 mm below the build
-plate. Worth re-running after any change to the seat or the stance.
+the ring, leg, or base. Worth re-running after any change to the seat or stance.
+
+Measuring caught three real faults that eyeballing renders did not:
+- the base slab filled the bottom of the pocket — the seat must be cut *after*
+  the base and leg are unioned on, not before;
+- the ring's back-bottom edge hung 1.3 mm below the build plate;
+- the **base plate floated 2.25 mm off the plate**, leaving the part balanced on
+  an 18 × 8 mm bar, because it was lifted by half its thickness as though
+  `rrect()` were centred on the origin when it already builds up from it.
+
+That last one is why the bounding box is not enough on its own. Intersect the
+model with a thin slab at the bottom and check the volume matches the base
+footprint (**2545 mm³** in the lowest 0.8 mm) — a bbox reports `z = 0` just as
+happily when a single small bar is all that touches the bed.
 
 ## Re-render after editing
 ```
@@ -93,7 +109,7 @@ i.e. a single body.
 
 ## Printing
 - Print **base-down** (as oriented). PLA/PETG, 3 perimeters, ~15% infill.
-- The underside of the leaning cradle is a mild overhang — enable **light
-  supports** (touching buildplate only) if your slicer flags it; the ~20° lean
-  keeps overhangs modest.
+- At 38° the underside of the cradle is a genuine overhang, though still inside
+  the ~45° most printers manage unsupported. Enable **light supports** (touching
+  buildplate only) if your slicer flags it.
 - A brim helps the small footprint stay put.

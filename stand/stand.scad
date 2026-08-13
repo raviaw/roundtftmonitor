@@ -38,11 +38,10 @@ port_angle  = 90;
 cable_w     = 16;    // notch width -- clears the right-angle plug's moulded body
 
 /* ---------- stance ---------- */
-tilt        = 20;    // lean-back from vertical (deg)
-// Cradle centre height. The ring is 10 mm deep and leans, so its BACK-bottom
-// edge hangs lowest: place_z - 25.3. Below ~25.4 that edge drops through the
-// build plate; this sits it ~1.8 mm into the base so the two merge solidly.
-place_z     = 28;
+// Lean back from vertical. The screen's normal rises by this angle, so it aims
+// at a seated viewer's eye when they're ~1.4x as far away as they are above it.
+tilt        = 38;
+merge       = 2.0;   // how far the ring's lowest edge sinks into the base
 base_w      = 52;    // base width
 base_d      = 62;    // base depth (front-back)
 base_t      = 4.5;   // base thickness
@@ -53,6 +52,13 @@ $fn         = 150;
 outer   = bore + 2*wall;
 Rb      = outer/2;
 base_y  = -(base_d/2) + 14;                  // shift base rearward
+
+// Cradle centre height, DERIVED -- do not hard-code it. Because the ring leans,
+// its BACK-bottom edge hangs lowest, at place_z - (Rb*cos(tilt) + ring_d*sin(tilt)).
+// This puts that edge `merge` below the base's top face, so the two fuse and
+// nothing pokes under the build plate. A hard-coded value is exactly how the
+// part once ended up 1.3 mm below the plate after the stance changed.
+place_z = base_t - merge + Rb*cos(tilt) + ring_d*sin(tilt);
 
 module rrect(w,d,t,r){
   hull() for(sx=[-1,1], sy=[-1,1])
@@ -89,9 +95,11 @@ module neck(){
   translate([-leg_w/2, bore/2 + 0.4, 0]) cube([leg_w, 4.5, ring_d]);
 }
 
-// base plate (rearward)
+// base plate (rearward). rrect() already builds up from z=0, so this sits ON
+// the build plate -- do NOT lift it by base_t/2 as if rrect were centred, or
+// the whole plate floats and the part balances on the back leg's bar alone.
 module base_plate(){
-  translate([0, base_y, base_t/2]) rrect(base_w, base_d, base_t, foot_r);
+  translate([0, base_y, 0]) rrect(base_w, base_d, base_t, foot_r);
 }
 
 // back leg: smooth hull from a base-back bar up to the ring's upper back
