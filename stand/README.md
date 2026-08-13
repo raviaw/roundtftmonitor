@@ -6,7 +6,10 @@ No off-the-shelf round-board tilt stand exists, so this is a parametric design.
 
 ## Files
 - `stand.scad` — parametric source (edit + re-render in OpenSCAD)
-- `stand.stl` — ready to slice
+- `stand.3mf` — **load this to print**; 3MF carries units so it imports at
+  the right size and orientation
+- `stand.stl` — same mesh, for anything that wants STL
+- `print_check.py` — build-volume fit, overhang and bed-contact numbers
 - `preview_iso.png` / `preview_side.png` / `preview_front.png` — renders
 - `fit_check.png` — the shell drawn seated in the cradle (see below)
 - `drawing.html` — a single-file drawing sheet: dimensioned section through the
@@ -108,8 +111,44 @@ A clean render reports **`Volumes: 2`** — one solid plus the surrounding void,
 i.e. a single body.
 
 ## Printing
-- Print **base-down** (as oriented). PLA/PETG, 3 perimeters, ~15% infill.
-- At 38° the underside of the cradle is a genuine overhang, though still inside
-  the ~45° most printers manage unsupported. Enable **light supports** (touching
-  buildplate only) if your slicer flags it.
-- A brim helps the small footprint stay put.
+
+Load **`stand.3mf`** rather than the STL — 3MF carries units, so it lands at the
+right size and orientation with nothing to set. It is already base-down and
+sitting on z = 0; do not rotate it.
+
+Run `python print_check.py` for the numbers below on the current geometry.
+
+### On the K1 Max
+Everything here is comfortably inside the machine — 52 × 62 × 47 mm is 21 % of
+the 300³ build volume.
+
+| Setting | Value | Why |
+|---|---|---|
+| Orientation | as supplied | base-down, no rotation |
+| Layer height | 0.2 mm | the 1.8 mm front lip is 9 layers |
+| Walls | 3 | the 2.8 mm ring wall is 7 extrusions wide |
+| Infill | ~15 % | nothing here is structural |
+| **Supports** | **off** | see below |
+| **Brim** | **not needed** | 3182 mm² of bed contact |
+| **Min layer time** | **8–10 s** | the one setting that matters, see below |
+
+**Supports: don't.** Only **48 mm² of the whole part** leans past 55°, and it is
+all one feature — the lead-in chamfer at the top-back of the ring. That chamfer
+is cut at 45° to the ring's axis, and because the ring leans 38° it ends up
+facing nearly straight down. It will droop slightly. That is harmless: the
+chamfer exists purely to let the shell start into the bore, so a soft edge there
+costs nothing, and supports would scar the seat instead.
+
+**Minimum layer time is the real K1 Max setting.** The stock profiles are built
+for speed, and this part has a tiny cross-section per layer — up in the ring
+each layer is a thin arc. At full speed those layers finish before the previous
+one has set, and the ring turns out soft and glossy. Setting a minimum layer
+time of 8–10 s (or capping speed to ~30 % on the outer wall) fixes it.
+
+**PLA in an enclosed machine:** leave the door and top open, or the chamber
+heat-soaks and you get heat creep in the extruder.
+
+### Bed contact
+The base makes full contact — 3182 mm², the entire footprint. That was not true
+until the base-plate bug above was fixed, when the part balanced on 144 mm² and
+genuinely did need a brim.

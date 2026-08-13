@@ -722,14 +722,87 @@
     </div>
   </section>
 
+  <!-- ================= PRINTING ================= -->
+  <section>
+    <div class="head">
+      <h2>Printing on the K1 Max</h2>
+      <span class="tag">0.4 nozzle · 300³ bed</span>
+    </div>
+
+    <p class="prose">
+      Load <code>stand.3mf</code> rather than the STL — 3MF carries units, so it
+      arrives at the right size and orientation with nothing to set. It is
+      already base-down on z&nbsp;=&nbsp;0; don't rotate it. At 52 × 62 × 47 mm
+      it uses 21% of the build volume.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Setting</th><th>Value</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Orientation</td><td class="num">as supplied</td>
+              <td class="what">Base-down, no rotation</td></tr>
+          <tr><td>Layer height</td><td class="num">0.2 mm</td>
+              <td class="what">The 1.8 mm front lip is 9 layers</td></tr>
+          <tr><td>Walls</td><td class="num">3</td>
+              <td class="what">The 2.8 mm ring wall is 7 extrusions wide</td></tr>
+          <tr><td>Infill</td><td class="num">~15%</td>
+              <td class="what">Nothing here is structural</td></tr>
+          <tr><td>Supports</td><td class="num"><span class="chip measured">Off</span></td>
+              <td class="what">48 mm² of the part leans past 55°, all of it one
+                forgiving feature</td></tr>
+          <tr><td>Brim</td><td class="num"><span class="chip measured">Not needed</span></td>
+              <td class="what">3182 mm² of bed contact — the full footprint</td></tr>
+          <tr class="flag"><td>Min layer time</td>
+              <td class="num"><span class="chip verify">8–10 s</span></td>
+              <td class="what">The one setting that actually matters here</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="notes" style="margin-top:30px">
+      <div class="note-item">
+        <h3>Why no supports</h3>
+        <p>
+          Only 48 mm² of the whole part leans past 55°, and it is all one
+          feature: the lead-in chamfer at the top-back of the ring. That chamfer
+          is cut at 45° to the ring's axis, so once the ring leans 38° it ends up
+          facing nearly straight down. It will droop a little, which costs
+          nothing — the chamfer exists only to let the shell start into the bore.
+          Supports would scar the seat instead.
+        </p>
+      </div>
+      <div class="note-item">
+        <h3>Slow the layers down</h3>
+        <p>
+          The stock profiles are built for speed and this part has a tiny
+          cross-section per layer — up in the ring, each layer is a thin arc. At
+          full speed those layers finish before the one beneath has set and the
+          ring comes out soft and glossy. A minimum layer time of 8–10 s, or
+          capping the outer wall to about 30% speed, fixes it. Printing PLA in an
+          enclosed machine, leave the door and top open so the chamber doesn't
+          heat-soak the extruder.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= COMMANDS ================= -->
   <section>
     <div class="head">
       <h2>Regenerating this</h2>
       <span class="tag">OpenSCAD 2021.01</span>
     </div>
-    <pre class="cmd"><b>openscad -o stand.stl stand.scad</b>
-   export the printable body — a clean run reports "Volumes: 2"
+    <pre class="cmd"><b>openscad -o stand.3mf stand.scad</b>
+   export the printable body — 3MF is what to load in the slicer
+
+<b>python print_check.py</b>
+   build-volume fit, overhang breakdown and bed contact
+
+<b>openscad -o stand.stl stand.scad</b>
+   the same mesh as STL — a clean run reports "Volumes: 2"
 
 <b>openscad -D show_pebble=true -o fit_check.png stand.scad</b>
    draw the shell stand-in seated in the cradle
