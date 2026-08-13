@@ -308,8 +308,8 @@
     <div class="tb-grid">
       <div class="tb-cell"><span class="tb-k">Source</span><span class="tb-v">stand.scad</span></div>
       <div class="tb-cell"><span class="tb-k">Units</span><span class="tb-v">mm</span></div>
-      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">52 × 62 × 47.0</span></div>
-      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">23 583 mm³</span></div>
+      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">58 × 70 × 50.6</span></div>
+      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">28 728 mm³</span></div>
       <div class="tb-cell"><span class="tb-k">Material</span><span class="tb-v">PLA / PETG</span></div>
       <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">38°</span></div>
       <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">shelled unit</span></div>
@@ -334,13 +334,13 @@
     </p>
 
     <div class="drawing">
-      <svg viewBox="0 0 820 336" role="img" aria-labelledby="secT secD">
+      <svg viewBox="0 0 880 336" role="img" aria-labelledby="secT secD">
         <title id="secT">Cross-section through the cradle seat</title>
         <desc id="secD">
           The ring wall in section with the display shell shown seated in it.
-          The front lip narrows the opening to 38.0 mm, stopping the 40.5 mm
-          shell, which is held in a 41.0 mm bore 10 mm deep and stands about
-          2 mm proud at the back.
+          The front lip narrows the opening to 43.0 mm, stopping the 45.0 mm
+          shell, which is held in a 45.5 mm bore 10 mm deep and stands about
+          1.75 mm proud at the back.
         </desc>
 
         <defs>
@@ -365,83 +365,89 @@
         <g font-family="ui-monospace, Consolas, monospace" font-size="13.5">
 
           <!-- centreline (axis of revolution) -->
-          <line x1="380" y1="40" x2="380" y2="322" stroke="var(--ink-3)"
+          <line x1="400" y1="40" x2="400" y2="322" stroke="var(--ink-3)"
                 stroke-width="1" stroke-dasharray="16 4 2.5 4"/>
 
           <!-- shell, drawn as a reference part: dashed outline, tinted -->
-          <path d="M195.75 106.78 L564.25 106.78
-                   A 38.5 38.5 0 0 1 602.75 145.28
-                   L602.75 189.28
-                   A 38.5 38.5 0 0 1 564.25 227.78
-                   L195.75 227.78
-                   A 38.5 38.5 0 0 1 157.25 189.28
-                   L157.25 145.28
-                   A 38.5 38.5 0 0 1 195.75 106.78 Z"
+          <path d="M191 104.24 L609 104.24
+                   A 38.5 38.5 0 0 1 647.5 142.74
+                   L647.5 186.74
+                   A 38.5 38.5 0 0 1 609 225.24
+                   L191 225.24
+                   A 38.5 38.5 0 0 1 152.5 186.74
+                   L152.5 142.74
+                   A 38.5 38.5 0 0 1 191 104.24 Z"
                 fill="var(--shell-tint)" stroke="var(--gold)" stroke-width="1.5"
                 stroke-dasharray="7 3.5"/>
-          <text x="300" y="172" fill="var(--gold)" font-size="12"
-                letter-spacing="1.4">SHELL (REF)</text>
+
+          <!-- the glass, and how narrowly the lip clears it -->
+          <g stroke="var(--caution)" stroke-width="2.6">
+            <line x1="169" y1="104.24" x2="631" y2="104.24"/>
+          </g>
+          <rect x="316" y="114" width="168" height="19" fill="var(--panel)"/>
+          <text x="400" y="128" text-anchor="middle" fill="var(--caution)"
+                font-size="12.5" font-weight="700">GLASS ⌀42.0</text>
+          <rect x="322" y="160" width="156" height="18" fill="var(--panel)"/>
+          <text x="400" y="173" text-anchor="middle" fill="var(--gold)"
+                font-size="12" letter-spacing="1.4">SHELL (REF)</text>
 
           <!-- cradle ring, cut both sides of the axis -->
           <g fill="url(#hatchA)" stroke="var(--ink)" stroke-width="1.7"
              stroke-linejoin="round">
-            <path d="M589 96 L636.3 96 L636.3 206 L616.5 206
-                     L605.5 195 L605.5 115.8 L589 115.8 Z"/>
-            <path d="M171 96 L123.7 96 L123.7 206 L143.5 206
-                     L154.5 195 L154.5 115.8 L171 115.8 Z"/>
+            <path d="M636.5 96 L681.05 96 L681.05 206 L661.25 206
+                     L650.25 195 L650.25 115.8 L636.5 115.8 Z"/>
+            <path d="M163.5 96 L118.95 96 L118.95 206 L138.75 206
+                     L149.75 195 L149.75 115.8 L163.5 115.8 Z"/>
           </g>
 
           <!-- ===== dimensions ===== -->
           <g stroke="var(--ink-2)" stroke-width="1" fill="none">
-            <!-- aperture 38.0 (above) : the one unverified dimension -->
-            <g stroke="var(--caution)">
-              <line x1="171" y1="92" x2="171" y2="50"/>
-              <line x1="589" y1="92" x2="589" y2="50"/>
-              <line x1="171" y1="58" x2="589" y2="58"
-                    marker-start="url(#arwC)" marker-end="url(#arwC)"/>
-            </g>
-            <!-- shell diameter 40.5 (below) -->
-            <line x1="157.25" y1="232" x2="157.25" y2="274"/>
-            <line x1="602.75" y1="232" x2="602.75" y2="274"/>
-            <line x1="157.25" y1="266" x2="602.75" y2="266"
+            <!-- aperture 43.0 (above) -->
+            <line x1="163.5" y1="92" x2="163.5" y2="50"/>
+            <line x1="636.5" y1="92" x2="636.5" y2="50"/>
+            <line x1="163.5" y1="58" x2="636.5" y2="58"
                   marker-start="url(#arw)" marker-end="url(#arw)"/>
-            <!-- bore 41.0 (below) -->
-            <line x1="154.5" y1="210" x2="154.5" y2="306"/>
-            <line x1="605.5" y1="210" x2="605.5" y2="306"/>
-            <line x1="154.5" y1="298" x2="605.5" y2="298"
+            <!-- shell diameter 45.0 (below) -->
+            <line x1="152.5" y1="230" x2="152.5" y2="274"/>
+            <line x1="647.5" y1="230" x2="647.5" y2="274"/>
+            <line x1="152.5" y1="266" x2="647.5" y2="266"
+                  marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <!-- bore 45.5 (below) -->
+            <line x1="149.75" y1="210" x2="149.75" y2="306"/>
+            <line x1="650.25" y1="210" x2="650.25" y2="306"/>
+            <line x1="149.75" y1="298" x2="650.25" y2="298"
                   marker-start="url(#arw)" marker-end="url(#arw)"/>
             <!-- shell thickness 11.0 (left) -->
-            <line x1="119" y1="106.78" x2="94" y2="106.78"/>
-            <line x1="153" y1="227.78" x2="94" y2="227.78"/>
-            <line x1="100" y1="106.78" x2="100" y2="227.78"
+            <line x1="114" y1="104.24" x2="88" y2="104.24"/>
+            <line x1="148" y1="225.24" x2="88" y2="225.24"/>
+            <line x1="94" y1="104.24" x2="94" y2="225.24"
                   marker-start="url(#arw)" marker-end="url(#arw)"/>
             <!-- ring depth 10.0 (right) -->
-            <line x1="640" y1="96" x2="682" y2="96"/>
-            <line x1="640" y1="206" x2="682" y2="206"/>
-            <line x1="676" y1="96" x2="676" y2="206"
+            <line x1="685" y1="96" x2="727" y2="96"/>
+            <line x1="685" y1="206" x2="727" y2="206"/>
+            <line x1="721" y1="96" x2="721" y2="206"
                   marker-start="url(#arw)" marker-end="url(#arw)"/>
             <!-- leaders -->
-            <path d="M598 106 L700 72" marker-start="url(#dot)"/>
-            <path d="M622 168 L700 140" marker-start="url(#dot)"/>
-            <path d="M586 218 L700 248" marker-start="url(#dot)"/>
+            <path d="M645 106 L745 72" marker-start="url(#dot)"/>
+            <path d="M667 168 L745 140" marker-start="url(#dot)"/>
+            <path d="M631 216 L745 248" marker-start="url(#dot)"/>
           </g>
 
           <g fill="var(--ink)">
-            <text x="380" y="50" text-anchor="middle" fill="var(--caution)"
-                  font-weight="700">⌀38.0 *</text>
-            <text x="380" y="260" text-anchor="middle">⌀40.5</text>
-            <text x="380" y="292" text-anchor="middle">⌀41.0</text>
-            <text transform="translate(88,167) rotate(-90)" text-anchor="middle">11.0</text>
-            <text transform="translate(664,151) rotate(-90)" text-anchor="middle">10.0</text>
-            <text x="706" y="70" font-size="12.5">1.8 front lip</text>
-            <text x="706" y="138" font-size="12.5">2.8 wall</text>
-            <text x="706" y="246" font-size="12.5">≈2.0 proud</text>
-            <text x="706" y="262" font-size="11" fill="var(--ink-3)">grip to remove</text>
+            <text x="400" y="50" text-anchor="middle" font-weight="700">⌀43.0</text>
+            <text x="400" y="260" text-anchor="middle">⌀45.0</text>
+            <text x="400" y="292" text-anchor="middle">⌀45.5</text>
+            <text transform="translate(82,165) rotate(-90)" text-anchor="middle">11.0</text>
+            <text transform="translate(709,151) rotate(-90)" text-anchor="middle">10.0</text>
+            <text x="751" y="70" font-size="12.5">1.8 front lip</text>
+            <text x="751" y="138" font-size="12.5">2.8 wall</text>
+            <text x="751" y="246" font-size="12.5">≈1.75 proud</text>
+            <text x="751" y="262" font-size="11" fill="var(--ink-3)">grip to remove</text>
           </g>
 
           <g fill="var(--ink-3)" font-size="11" letter-spacing="1.6">
-            <text x="123.7" y="86">SCREEN SIDE</text>
-            <text x="123.7" y="322">SHELL ENTERS FROM THIS FACE</text>
+            <text x="118.95" y="86">SCREEN SIDE</text>
+            <text x="118.95" y="322">SHELL ENTERS FROM THIS FACE</text>
           </g>
         </g>
       </svg>
@@ -450,7 +456,7 @@
     <div class="legend">
       <span><i class="sw stand"></i> Printed cradle, in section</span>
       <span><i class="sw shell"></i> Display shell, reference only</span>
-      <span style="color:var(--caution)">* verify against the glass diameter before printing</span>
+      <span style="color:var(--caution)">Glass ⌀42.0 — the lip clears it by 0.5 mm on radius</span>
     </div>
 
     <p class="prose" style="margin-top:18px">
@@ -462,63 +468,72 @@
   <!-- ================= WHAT TO MEASURE ================= -->
   <section>
     <div class="head">
-      <h2>Before you print — what to measure</h2>
-      <span class="tag">One dimension, one sanity check</span>
+      <h2>The tightest fit — lip against glass</h2>
+      <span class="tag">Measured, 1.5 mm to play with</span>
     </div>
 
     <p class="prose">
-      Put the calipers across the <b>black glass on the front of the shell</b> —
-      the whole glossy disc, not just the lit area. That single number decides
-      <code>aperture</code>, and it is the only thing between this design and a
-      part that doesn't hold.
+      The shell is <b>45.0 mm</b> across and its black glass is <b>42.0 mm</b>,
+      which leaves a plastic rim just <b>1.5 mm wide</b> on radius. That rim is
+      the only thing the lip can land on, and it is the tightest fit anywhere in
+      the part. <code>aperture</code> splits it: <b>0.5 mm</b> clear of the
+      glass, <b>1.0 mm</b> of ledge under the shell.
+    </p>
+
+    <p class="prose">
+      Holes print undersize on FDM, which is why the glass side gets the
+      clearance and the ledge absorbs the error — a lip that comes out 0.3 mm
+      tight still holds, a lip that creeps onto the glass makes the shell rock.
+      <code>stand.scad</code> asserts the bore stays between the two, so the
+      render fails rather than quietly producing a cradle that sits on the
+      screen.
     </p>
 
     <div class="drawing">
       <svg viewBox="0 0 900 480" role="img" aria-labelledby="msT msD">
-        <title id="msT">What to measure on the shell</title>
+        <title id="msT">How the lip clears the glass</title>
         <desc id="msD">
-          Front view of the shell showing the black glass diameter to be
-          measured, and two cross-sections comparing a front lip that lands on
+          Front view of the shell showing the 42 mm glass inside the 45 mm
+          outer edge, and two cross-sections comparing a front lip that lands on
           the plastic rim with one that perches on the glass.
         </desc>
 
         <g font-family="ui-monospace, Consolas, monospace" font-size="13">
 
           <!-- ============ front view ============ -->
-          <!-- the annular band the lip covers -->
+          <!-- the 1.0 mm annular ledge the lip actually lands on -->
           <path fill-rule="evenodd" fill="var(--shell-tint)"
-                d="M 88,215 A 162,162 0 1 0 412,215 A 162,162 0 1 0 88,215 Z
-                   M 98,215 A 152,152 0 1 0 402,215 A 152,152 0 1 0 98,215 Z"/>
+                d="M 70,215 A 180,180 0 1 0 430,215 A 180,180 0 1 0 70,215 Z
+                   M 78,215 A 172,172 0 1 0 422,215 A 172,172 0 1 0 78,215 Z"/>
 
-          <circle cx="250" cy="215" r="162" fill="none"
+          <circle cx="250" cy="215" r="180" fill="none"
                   stroke="var(--ink)" stroke-width="1.8"/>
-          <circle cx="250" cy="215" r="152" fill="none"
+          <circle cx="250" cy="215" r="172" fill="none"
                   stroke="var(--gold)" stroke-width="1.2"/>
-          <circle cx="250" cy="215" r="148" fill="none"
+          <circle cx="250" cy="215" r="168" fill="none"
                   stroke="var(--caution)" stroke-width="1.6"
                   stroke-dasharray="8 4"/>
           <circle cx="250" cy="215" r="130" fill="none"
                   stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="2 4"/>
 
-          <!-- the measurement itself -->
-          <line x1="102" y1="215" x2="398" y2="215" stroke="var(--caution)"
+          <line x1="82" y1="215" x2="418" y2="215" stroke="var(--caution)"
                 stroke-width="1.4" marker-start="url(#arwC)"
                 marker-end="url(#arwC)"/>
-          <rect x="160" y="193" width="180" height="20" fill="var(--panel)"/>
+          <rect x="176" y="193" width="148" height="20" fill="var(--panel)"/>
           <text x="250" y="208" text-anchor="middle" fill="var(--caution)"
-                font-weight="700">⌀ ? — MEASURE THIS</text>
+                font-weight="700">⌀42.0 GLASS</text>
           <text x="250" y="245" text-anchor="middle" fill="var(--ink-3)"
                 font-size="11.5">dashed = the black glass</text>
           <text x="250" y="300" text-anchor="middle" fill="var(--ink-3)"
                 font-size="11">active display ⌀32.4</text>
 
           <g stroke="var(--ink-2)" stroke-width="1" fill="none">
-            <path d="M331 355 L398 400" marker-start="url(#dot)"/>
-            <path d="M171 351 L112 400" marker-start="url(#dot)"/>
+            <path d="M340 371 L398 408" marker-start="url(#dot)"/>
+            <path d="M162 367 L112 408" marker-start="url(#dot)"/>
           </g>
-          <text x="404" y="404" fill="var(--ink)" font-size="12.5">⌀40.5 known</text>
-          <text x="106" y="404" text-anchor="end" fill="var(--gold)"
-                font-size="12.5">lip lands here</text>
+          <text x="404" y="412" fill="var(--ink)" font-size="12.5">⌀45.0 shell</text>
+          <text x="106" y="412" text-anchor="end" fill="var(--gold)"
+                font-size="12.5">1.0 mm ledge</text>
 
           <!-- ============ detail: good ============ -->
           <text x="540" y="118" fill="var(--ok)" font-weight="700"
@@ -564,33 +579,31 @@
     </div>
 
     <div class="legend">
-      <span style="color:var(--caution)"><b>aperture ≥ glass ⌀ + 0.5 mm</b></span>
-      <span>currently <b>38.0</b>, so glass up to <b>37.5</b> is fine as drawn</span>
+      <span style="color:var(--caution)"><b>glass 42.0 &lt; aperture 43.0 &lt; shell 45.0</b></span>
+      <span>asserted in <b>stand.scad</b> — the render fails if it drifts out</span>
     </div>
 
     <div class="tablewrap" style="margin-top:22px">
       <table>
-        <thead><tr><th>If the glass measures</th><th>Then</th></tr></thead>
+        <thead><tr><th>Feature</th><th>⌀</th><th>Radial budget</th></tr></thead>
         <tbody>
-          <tr><td class="num">≤ 37.5 mm</td>
-              <td class="what">Nothing to do — print it as drawn</td></tr>
-          <tr><td class="num">37.5 – 39.0 mm</td>
-              <td class="what">Raise <code>aperture</code> to the glass + 0.5 and
-                re-render. Even at 39.5 the ledge is still 0.5 mm, which is
-                ample for a 15 g shell.</td></tr>
-          <tr class="flag"><td class="num">&gt; 39.5 mm</td>
-              <td class="what">The lip can no longer clear the glass and still
-                catch the rim. Retention would have to move to the back of the
-                shell instead.</td></tr>
+          <tr><td class="what">Shell, outer edge</td><td class="num">45.0</td>
+              <td class="what">Measured</td></tr>
+          <tr><td class="what">Front lip bore</td><td class="num">43.0</td>
+              <td class="what">Leaves <b>1.0 mm</b> of ledge under the shell</td></tr>
+          <tr class="flag"><td class="what">Black glass</td><td class="num">42.0</td>
+              <td class="what">Lip stops <b>0.5 mm</b> short of it — the half
+                that must not be spent</td></tr>
         </tbody>
       </table>
     </div>
 
     <p class="prose" style="margin-top:22px">
-      <b>Reading the edge:</b> glass and rim are both glossy black, so the
-      boundary hides head-on. Tilt the shell under a light until the glass
-      catches a reflection and the plastic doesn't. A fingernail dragged inward
-      will also catch the step.
+      <b>Still worth confirming:</b> <code>disc_t</code>, the shell's 11 mm
+      thickness, came from the same session as the superseded 40.5 mm diameter.
+      It only sets how far the shell stands proud at the back, and the render
+      now asserts it exceeds the ring depth, so an error shows up as a failed
+      render rather than a shell you can't get back out.
     </p>
 
     <p class="prose">
@@ -700,7 +713,7 @@
         </thead>
         <tbody>
           <tr>
-            <td>disc_d</td><td class="num">40.5 mm</td>
+            <td>disc_d</td><td class="num">45.0 mm</td>
             <td class="what">Shell diameter at its widest — the equator</td>
             <td><span class="chip measured">Measured</span></td>
           </tr>
@@ -709,11 +722,18 @@
             <td class="what">Shell thickness, front to back</td>
             <td><span class="chip measured">Measured</span></td>
           </tr>
+          <tr>
+            <td>glass_d</td><td class="num">42.0 mm</td>
+            <td class="what">The black glass. Leaves only 1.5 mm of plastic rim
+              outside it — the entire ledge the lip has to aim at.</td>
+            <td><span class="chip measured">Measured</span></td>
+          </tr>
           <tr class="flag">
-            <td>aperture</td><td class="num">38.0 mm</td>
-            <td class="what">Front lip bore — the ledge the shell rests on. Must
-              clear the black glass and land on the plastic rim.</td>
-            <td><span class="chip verify">Verify</span></td>
+            <td>aperture</td><td class="num">43.0 mm</td>
+            <td class="what">Front lip bore, and the tightest fit in the part. It
+              splits the 1.5 mm rim: 0.5 mm clear of the glass, 1.0 mm of ledge
+              under the shell. Asserted to stay between glass_d and disc_d.</td>
+            <td><span class="chip measured">Derived</span></td>
           </tr>
           <tr>
             <td>fit</td><td class="num">0.5 mm</td>
@@ -721,7 +741,7 @@
             <td><span class="chip derived">Design</span></td>
           </tr>
           <tr>
-            <td>bore</td><td class="num">41.0 mm</td>
+            <td>bore</td><td class="num">45.5 mm</td>
             <td class="what">Pocket bore, disc_d + fit</td>
             <td><span class="chip derived">Derived</span></td>
           </tr>
@@ -768,14 +788,14 @@
             <td><span class="chip derived">Design</span></td>
           </tr>
           <tr>
-            <td>place_z</td><td class="num">27.0 mm</td>
+            <td>place_z</td><td class="num">28.8 mm</td>
             <td class="what">Cradle centre height — computed from tilt, never
               hard-coded. The ring leans, so its back-bottom edge hangs lowest;
               this lands that edge <code>merge</code> below the base's top face.</td>
             <td><span class="chip derived">Derived</span></td>
           </tr>
           <tr>
-            <td>base</td><td class="num">52 × 62 × 4.5</td>
+            <td>base</td><td class="num">58 × 68 × 4.5</td>
             <td class="what">Base plate, shifted rearward under the lean</td>
             <td><span class="chip derived">Design</span></td>
           </tr>
@@ -811,14 +831,14 @@
           not fragments that happen to touch.</div>
       </div>
       <div class="check">
-        <div class="val">2545</div>
-        <div class="lbl">mm³ in the lowest 0.8 mm</div>
-        <div class="note">Matches the base footprint exactly, so the whole plate
-          is on the bed. A bounding-box check alone said the same thing while
-          the plate was floating.</div>
+        <div class="val">3901</div>
+        <div class="lbl">mm² of bed contact</div>
+        <div class="note">Matches the base footprint exactly, so the whole plate is
+          on the bed. A bounding-box check alone said the same thing while the
+          plate was floating.</div>
       </div>
       <div class="check">
-        <div class="val">≈2.0</div>
+        <div class="val">≈1.75</div>
         <div class="lbl">mm shell stands proud</div>
         <div class="note">Enough of the back edge to grip and push the shell
           back out.</div>
@@ -905,8 +925,8 @@
     <p class="prose">
       Load <code>stand.3mf</code> rather than the STL — 3MF carries units, so it
       arrives at the right size and orientation with nothing to set. It is
-      already base-down on z&nbsp;=&nbsp;0; don't rotate it. At 52 × 62 × 47 mm
-      it uses 21% of the build volume.
+      already base-down on z&nbsp;=&nbsp;0; don't rotate it. At 58 × 70 × 51 mm
+      it uses 23% of the build volume.
     </p>
 
     <div class="tablewrap">
@@ -924,10 +944,10 @@
           <tr><td>Infill</td><td class="num">~15%</td>
               <td class="what">Nothing here is structural</td></tr>
           <tr><td>Supports</td><td class="num"><span class="chip measured">Off</span></td>
-              <td class="what">48 mm² of the part leans past 55°, all of it one
+              <td class="what">46 mm² of the part leans past 55°, all of it one
                 forgiving feature</td></tr>
           <tr><td>Brim</td><td class="num"><span class="chip measured">Not needed</span></td>
-              <td class="what">3182 mm² of bed contact — the full footprint</td></tr>
+              <td class="what">3902 mm² of bed contact — the full footprint</td></tr>
           <tr class="flag"><td>Min layer time</td>
               <td class="num"><span class="chip verify">8–10 s</span></td>
               <td class="what">The one setting that actually matters here</td></tr>
@@ -939,7 +959,7 @@
       <div class="note-item">
         <h3>Why no supports</h3>
         <p>
-          Only 48 mm² of the whole part leans past 55°, and it is all one
+          Only 46 mm² of the whole part leans past 55°, and it is all one
           feature: the lead-in chamfer at the top-back of the ring. That chamfer
           is cut at 45° to the ring's axis, so once the ring leans 38° it ends up
           facing nearly straight down. It will droop a little, which costs

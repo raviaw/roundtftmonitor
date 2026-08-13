@@ -75,9 +75,12 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
   `E:\dev\openscad\openscad-2021.01\openscad.exe`. Render: `openscad -o stand.stl stand.scad`.
 - Render a PNG to inspect headlessly: `openscad -o out.png --viewall --autocenter --camera=0,0,0,90,0,90,0 stand.scad`.
 - Sized for the unit **in its plastic shell** (measured 2026-08-13): a rounded
-  pebble **40.5 mm** at the equator × **11 mm** thick, USB-C **on the rim**.
-  `disc_d`/`disc_t` are confirmed; `aperture` (38.0, the front lip bore) is the
-  one number still to check against the glass diameter.
+  pebble **45 mm** at the equator × **11 mm** thick, USB-C **on the rim**, with a
+  **42 mm** glass. An earlier 40.5 mm outer figure was WRONG — don't reinstate it.
+- Only **1.5 mm of plastic rim** (⌀45 vs ⌀42) for the lip to land on: `aperture`
+  43.0 = 0.5 mm clear of the glass + 1.0 mm of ledge. Holes print undersize, so
+  the glass side keeps the clearance. `stand.scad` **asserts**
+  `glass_d < aperture < disc_d` and `disc_t > ring_d` — keep those.
 - Seat = straight bore + front lip, NOT a cone: a cone's grip depends on the
   shell's rim curvature, which can't be measured off a photo. USB-C exits
   **sideways** (`port_angle`, default 90 = viewer's left) — a right-angle plug

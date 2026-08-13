@@ -13,13 +13,17 @@
 // Units: mm.  Viewer is at +Y; screen faces +Y. Support & base extend to -Y.
 
 /* ---------- fit parameters (measured off the shell) ---------- */
-disc_d      = 40.5;  // shell diameter at its widest -- the equator
+disc_d      = 45;    // shell diameter at its widest -- the equator
 disc_t      = 11;    // shell thickness front-to-back
+glass_d     = 42;    // the black glass. Only 1.5 mm of plastic rim outside it,
+                     // which is the entire ledge the lip has to land on.
 
 /* ---------- seat ---------- */
-// *** aperture is the one number still unmeasured: it MUST clear the black
-// *** glass. Measure the glass diameter; keep aperture at least 0.5 mm bigger.
-aperture    = 38.0;  // front lip bore -- 1.25 mm of ledge onto the plastic rim
+// The lip bore must clear the glass and still catch the rim, and there is only
+// 1.5 mm of rim to aim at. 43.0 splits it: 0.5 mm clear of the glass on radius,
+// 1.0 mm of ledge under the shell. Holes print undersize on FDM, so the 0.5 mm
+// glass clearance is the half that must not be spent.
+aperture    = 43.0;  // front lip bore. MUST stay between glass_d and disc_d
 fit         = 0.5;   // diametral clearance on the bore
 front_thick = 1.8;   // thickness of the front lip
 ring_d      = 10.0;  // ring depth. < disc_t so the back stands proud to grip
@@ -27,6 +31,15 @@ wall        = 2.8;   // ring wall thickness
 lead_in     = 1.0;   // 45 deg chamfer at the back opening, to start the pebble
 
 bore        = disc_d + fit;
+
+// The lip only works inside this window, and the window is 1.5 mm wide. Fail
+// the render rather than quietly print a cradle that sits on the screen.
+assert(aperture > glass_d,
+       "aperture is inside the glass -- the lip would sit on the screen");
+assert(aperture < disc_d,
+       "aperture is wider than the shell -- the lip would not catch it at all");
+assert(disc_t > ring_d,
+       "shell is shallower than the ring -- it would sink in with no edge to grip");
 
 /* ---------- USB-C on the rim ---------- */
 // The port exits SIDEWAYS, not downward: a right-angle plug needs ~10 mm of
@@ -42,11 +55,13 @@ cable_w     = 16;    // notch width -- clears the right-angle plug's moulded bod
 // at a seated viewer's eye when they're ~1.4x as far away as they are above it.
 tilt        = 38;
 merge       = 2.0;   // how far the ring's lowest edge sinks into the base
-base_w      = 52;    // base width
-base_d      = 62;    // base depth (front-back)
+// Base is sized off the ring: it has to stay wider than the 51.1 mm ring OD or
+// the cradle overhangs its own footprint.
+base_w      = 58;    // base width
+base_d      = 68;    // base depth (front-back)
 base_t      = 4.5;   // base thickness
 foot_r      = 7;     // base corner radius
-leg_w       = 18;    // back-leg width
+leg_w       = 20;    // back-leg width
 $fn         = 150;
 
 outer   = bore + 2*wall;

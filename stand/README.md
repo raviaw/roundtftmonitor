@@ -31,9 +31,13 @@ them with the viewer's theme, so edit `CAMERAS` in `build_page.py` rather than
 adding one-off renders.
 
 ## What it holds
-The shell is a rounded **pebble**, not a cylinder: **40.5 mm** across at its
-widest (its equator), **11 mm** thick, domed glass front, flat-ish back, and the
-**USB-C port on the rim**.
+The shell is a rounded **pebble**, not a cylinder: **45 mm** across at its widest
+(its equator), **11 mm** thick, domed glass front, flat-ish back, and the
+**USB-C port on the rim**. The black glass is **42 mm**, leaving only **1.5 mm**
+of plastic rim — that rim is the entire ledge the cradle has to grip.
+
+> An earlier 40.5 mm figure for the outer edge was wrong and everything derived
+> from it was undersized. 45/42 are the measured values.
 
 ## What it is
 A ring cradle leaning back **38°** toward a seated viewer, on a rearward base
@@ -58,16 +62,31 @@ Set `port_angle` to move it: `0` = bottom, **`90` = viewer's left (default)**,
 `270` = viewer's right. **Rotate the UI in firmware to match.**
 
 ## Size
-- Footprint **52 × 62 mm**, height **~47 mm**
-- ~23.6 cm³ (~29 g PLA solid; well under that at normal infill)
+- Footprint **58 × 68 mm** (70 mm overall — the ring's lip overhangs the base
+  front by ~1.7 mm), height **~51 mm**
+- ~28.7 cm³ (~36 g PLA solid; well under that at normal infill)
 
-## ⚠️ The one dimension still unverified
-`aperture` (default **38.0 mm**) is the front lip's bore. It must clear the
-**black glass** and land on the plastic rim around it. Measure the glass
-diameter and keep `aperture` at least 0.5 mm larger. Too small and the lip
-creeps over the screen edge; too large and it loses its grip on the rim.
+## The tightest fit in the part
+There is only **1.5 mm** of plastic rim between the glass (⌀42) and the shell's
+outer edge (⌀45), and the front lip has to land inside it. `aperture` = **43.0**
+splits that budget:
 
-`disc_d` (40.5) and `disc_t` (11) are measured and confirmed.
+| | ⌀ | |
+|---|---|---|
+| Shell outer edge | 45.0 | measured |
+| **Front lip bore** | **43.0** | leaves **1.0 mm** of ledge under the shell |
+| Black glass | 42.0 | lip stops **0.5 mm** short of it |
+
+Holes print undersize on FDM, so the glass side gets the clearance and the ledge
+absorbs the error: a lip 0.3 mm tight still holds, a lip on the glass rocks.
+
+`stand.scad` **asserts** `glass_d < aperture < disc_d` and `disc_t > ring_d`, so
+a bad edit fails the render instead of quietly printing a cradle that sits on
+the screen.
+
+Still worth confirming: `disc_t` (11) came from the same session as the
+superseded 40.5. It only sets how far the shell stands proud at the back, and
+the assert catches it going too small.
 
 **Reading the edge:** glass and rim are both glossy black, so the boundary
 hides head-on. Tilt the shell under a light until the glass catches a
@@ -107,7 +126,7 @@ Measuring caught three real faults that eyeballing renders did not:
 
 That last one is why the bounding box is not enough on its own. Intersect the
 model with a thin slab at the bottom and check the volume matches the base
-footprint (**2545 mm³** in the lowest 0.8 mm) — a bbox reports `z = 0` just as
+footprint (**3121 mm³** in the lowest 0.8 mm) — a bbox reports `z = 0` just as
 happily when a single small bar is all that touches the bed.
 
 ## Re-render after editing
@@ -127,7 +146,7 @@ sitting on z = 0; do not rotate it.
 Run `python print_check.py` for the numbers below on the current geometry.
 
 ### On the K1 Max
-Everything here is comfortably inside the machine — 52 × 62 × 47 mm is 21 % of
+Everything here is comfortably inside the machine — 58 × 70 × 51 mm is 23 % of
 the 300³ build volume.
 
 | Setting | Value | Why |
@@ -137,10 +156,10 @@ the 300³ build volume.
 | Walls | 3 | the 2.8 mm ring wall is 7 extrusions wide |
 | Infill | ~15 % | nothing here is structural |
 | **Supports** | **off** | see below |
-| **Brim** | **not needed** | 3182 mm² of bed contact |
+| **Brim** | **not needed** | 3902 mm² of bed contact |
 | **Min layer time** | **8–10 s** | the one setting that matters, see below |
 
-**Supports: don't.** Only **48 mm² of the whole part** leans past 55°, and it is
+**Supports: don't.** Only **46 mm² of the whole part** leans past 55°, and it is
 all one feature — the lead-in chamfer at the top-back of the ring. That chamfer
 is cut at 45° to the ring's axis, and because the ring leans 38° it ends up
 facing nearly straight down. It will droop slightly. That is harmless: the
@@ -157,6 +176,6 @@ time of 8–10 s (or capping speed to ~30 % on the outer wall) fixes it.
 heat-soaks and you get heat creep in the extruder.
 
 ### Bed contact
-The base makes full contact — 3182 mm², the entire footprint. That was not true
+The base makes full contact — 3902 mm², the entire footprint. That was not true
 until the base-plate bug above was fixed, when the part balanced on 144 mm² and
 genuinely did need a brim.
