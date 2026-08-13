@@ -84,9 +84,10 @@ absorbs the error: a lip 0.3 mm tight still holds, a lip on the glass rocks.
 a bad edit fails the render instead of quietly printing a cradle that sits on
 the screen.
 
-Still worth confirming: `disc_t` (11) came from the same session as the
-superseded 40.5. It only sets how far the shell stands proud at the back, and
-the assert catches it going too small.
+All three seat dimensions are measured and confirmed: `disc_d` 45,
+`glass_d` 42, `disc_t` 11 — the last re-checked after the diameter correction.
+The only estimated number left anywhere is `rim_r`, which lives inside the fit
+check and never reaches the printed part.
 
 **Reading the edge:** glass and rim are both glossy black, so the boundary
 hides head-on. Tilt the shell under a light until the glass catches a

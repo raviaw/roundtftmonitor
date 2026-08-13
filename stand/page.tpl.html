@@ -312,7 +312,7 @@
       <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">28 728 mm³</span></div>
       <div class="tb-cell"><span class="tb-k">Material</span><span class="tb-v">PLA / PETG</span></div>
       <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">38°</span></div>
-      <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">shelled unit</span></div>
+      <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">45 mm shell</span></div>
       <div class="tb-cell"><span class="tb-k">Date</span><span class="tb-v">2026-08-13</span></div>
     </div>
   </header>
@@ -599,11 +599,11 @@
     </div>
 
     <p class="prose" style="margin-top:22px">
-      <b>Still worth confirming:</b> <code>disc_t</code>, the shell's 11 mm
-      thickness, came from the same session as the superseded 40.5 mm diameter.
-      It only sets how far the shell stands proud at the back, and the render
-      now asserts it exceeds the ring depth, so an error shows up as a failed
-      render rather than a shell you can't get back out.
+      <b>All three are measured.</b> Shell ⌀45.0, glass ⌀42.0, thickness
+      11 mm — the last re-confirmed after the diameter correction. Nothing in
+      the seat is estimated any more; the asserts hold the relationships between
+      them, and the only figure left that anyone guessed is <code>rim_r</code>,
+      which exists solely inside the fit check and never reaches the part.
     </p>
 
     <p class="prose">
