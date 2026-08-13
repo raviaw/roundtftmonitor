@@ -69,6 +69,14 @@ creeps over the screen edge; too large and it loses its grip on the rim.
 
 `disc_d` (40.5) and `disc_t` (11) are measured and confirmed.
 
+**Reading the edge:** glass and rim are both glossy black, so the boundary
+hides head-on. Tilt the shell under a light until the glass catches a
+reflection and the plastic doesn't; a fingernail dragged inward catches the
+step. `drawing.html` shows this drawn, with good/bad sections.
+
+Also worth ten seconds: the **width of your right-angle USB-C plug's moulded
+body**. The rim notch is `cable_w` = 16 mm, so up to ~15 mm drops through.
+
 ## Changing the lean
 Set `tilt` (currently **38°**) and re-render — nothing else needs touching.
 `place_z` is *derived* from it, because leaning the cradle moves its lowest
