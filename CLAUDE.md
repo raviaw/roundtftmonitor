@@ -74,7 +74,17 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
 - Parametric OpenSCAD tilt cradle (`stand.scad` → `stand.stl`). OpenSCAD portable at
   `E:\dev\openscad\openscad-2021.01\openscad.exe`. Render: `openscad -o stand.stl stand.scad`.
 - Render a PNG to inspect headlessly: `openscad -o out.png --viewall --autocenter --camera=0,0,0,90,0,90,0 stand.scad`.
-- Fit params to verify with calipers: `disc_d` (40.5), `disc_t` (4.6).
+- Sized for the unit **in its plastic shell** (measured 2026-08-13): a rounded
+  pebble **40.5 mm** at the equator × **11 mm** thick, USB-C **on the rim**.
+  `disc_d`/`disc_t` are confirmed; `aperture` (38.0, the front lip bore) is the
+  one number still to check against the glass diameter.
+- Seat = straight bore + front lip, NOT a cone: a cone's grip depends on the
+  shell's rim curvature, which can't be measured off a photo. USB-C exits
+  **sideways** (`port_angle`, default 90 = viewer's left) — a right-angle plug
+  needs ~10 mm radially and at the bottom that lands below the desk.
+- Verify seat changes numerically, not by eye: intersect the model with the
+  `seated_pebble()` stand-in and measure the overlap volume (want **0**). Cut the
+  seat **after** unioning base+leg, or the base slab fills the pocket.
 
 ## Gotchas learned
 - OpenSCAD CGAL **"Volumes: 2" = one solid + surrounding void = a single body**
