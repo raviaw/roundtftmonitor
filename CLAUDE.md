@@ -94,9 +94,12 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
   needs ~10 mm radially and at the bottom that lands below the desk.
 - Leans back **38°**; `place_z` is **derived** from `tilt` (don't hard-code it —
   leaning moves the ring's lowest edge, which once put the part under the plate).
-- Verify seat changes numerically, not by eye: intersect the model with the
-  `seated_pebble()` stand-in and measure the overlap volume (want **0**). Cut the
-  seat **after** unioning base+leg, or the base slab fills the pocket.
+- **`python stand/verify.py` after ANY change** — ten pass/fail checks (seat
+  invariants, single body, sits on the plate, watertight, shell overlap = 0,
+  full bed contact). Each one exists because something got past without it.
+- Cut the seat **after** unioning base+leg, or the base slab fills the pocket.
+- Slice with `stand/slice.sh` (OrcaSlicer portable at `E:\dev\orcaslicer`); it
+  bounds-checks the G-code it emits. Don't hand-write G-code for the K1 Max.
 - **`rim_r` is derived, not eyeballed** — `(disc_d - glass_d)/2`. The glass sits
   on the front face, so the face must be >= `glass_d`; a guessed 3.5 implied a
   38 mm face under a 42 mm glass and every interference check ran against an

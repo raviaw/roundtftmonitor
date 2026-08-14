@@ -50,3 +50,7 @@ echo "wrote gcode/stand_K1Max_PLA_0.20mm.gcode"
 grep -m1 "^START_PRINT" "$HERE/gcode/stand_K1Max_PLA_0.20mm.gcode"
 grep -E "^; (printer_model|curr_bed_type|wall_loops|sparse_infill_density|brim_type|enable_support) " \
      "$HERE/gcode/stand_K1Max_PLA_0.20mm.gcode"
+
+# ...and every move must land inside the build volume. A wrong profile will
+# happily emit coordinates off the bed; the failure mode is a toolhead crash.
+python "$HERE/gcode_check.py" "$HERE/gcode/stand_K1Max_PLA_0.20mm.gcode"

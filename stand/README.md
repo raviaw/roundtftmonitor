@@ -11,6 +11,8 @@ No off-the-shelf round-board tilt stand exists, so this is a parametric design.
   so it imports at the right size and orientation
 - `slice.sh` + `slicer/*.json` — how that G-code is produced
 - `stand.stl` — same mesh, for anything that wants STL
+- `verify.py` + `verify.scad` — **run after any change**; ten pass/fail checks
+- `gcode_check.py` — bounds-checks sliced G-code against the build volume
 - `print_check.py` — build-volume fit, overhang and bed-contact numbers
 - `preview_iso.png` / `preview_side.png` / `preview_front.png` — renders
 - `fit_check.png` — the shell drawn seated in the cradle (see below)
@@ -268,9 +270,9 @@ something hand-written.
 
 | | |
 |---|---|
-| Time | **59 m 17 s** |
-| Material | **24.8 g** PLA (20.0 cm³) |
-| Layers | 253, 0.20 mm, top at 50.80 mm |
+| Time | **59 m 0 s** |
+| Material | **24.7 g** PLA |
+| Layers | 251, 0.20 mm, top at 50.60 mm |
 | Walls / infill | 3 / 40 % |
 | Supports / brim | none / none |
 | Bed | Textured PEI, 45 °C · nozzle 200 °C |
@@ -280,8 +282,33 @@ Changed from Creality's stock *0.20mm Standard*: walls 2→3, infill 15→40 %
 from **Cool Plate to Textured PEI** — the CLI defaults to Cool Plate, which
 silently gives you a 35 °C bed on a machine that ships with textured PEI.
 
-Verified rather than assumed: all 61 323 moves fall inside 0–300 mm in X, Y and
-Z, and the part is centred on the bed at 150, 150.
+Verified rather than assumed: all 61 819 moves fall inside 0–300 mm in X, Y and
+Z, centred on the bed at 150, 150. `slice.sh` re-runs that check every time.
 
 Re-slice with `./slice.sh` (needs OrcaSlicer portable at `E:\dev\orcaslicer`,
 override with `ORCA=`).
+
+## Verifying a change
+
+```
+python verify.py
+```
+
+Ten pass/fail checks, each of which exists because something once got past
+without it:
+
+| Check | Why it is there |
+|---|---|
+| lip clears the glass | the bore twice ended up on the wrong side of it |
+| lip still catches the shell | at ⌀42 against a 43 bore the display falls through |
+| shell stands proud | otherwise there is no edge to push it back out by |
+| clear of the active display | 32.4 mm is the one figure that cannot be mismeasured |
+| one solid body | CGAL `Volumes: 2` — one solid plus the void around it |
+| sits on the build plate | the ring's back edge once hung 1.31 mm under it |
+| fits the printer | 300³ |
+| watertight mesh | the leg's stub was coplanar with the ring's front face |
+| shell seats without fouling | a cone once drove the shell 1208 mm³ into the ring |
+| full base on the bed | the base plate floated 2.25 mm while the bbox read 0 |
+
+That last pair is the point of the file: a bounding box reports `z = 0` just as
+happily when a single 18 × 8 mm bar is all that touches the bed.

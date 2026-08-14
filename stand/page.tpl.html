@@ -308,8 +308,8 @@
     <div class="tb-grid">
       <div class="tb-cell"><span class="tb-k">Source</span><span class="tb-v">stand.scad</span></div>
       <div class="tb-cell"><span class="tb-k">Units</span><span class="tb-v">mm</span></div>
-      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">58 × 70 × 50.6</span></div>
-      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">28 819 mm³</span></div>
+      <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">58 × 70 × 50.5</span></div>
+      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">28 631 mm³</span></div>
       <div class="tb-cell"><span class="tb-k">Material</span><span class="tb-v">PLA / PETG</span></div>
       <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">38°</span></div>
       <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">45 mm shell</span></div>
@@ -925,7 +925,7 @@
     <p class="prose">
       Load <code>stand.3mf</code> rather than the STL — 3MF carries units, so it
       arrives at the right size and orientation with nothing to set. It is
-      already base-down on z&nbsp;=&nbsp;0; don't rotate it. At 58 × 70 × 51 mm
+      already base-down on z&nbsp;=&nbsp;0; don't rotate it. At 58 × 70 × 50 mm
       it uses 23% of the build volume.
     </p>
 
@@ -1049,7 +1049,13 @@
       <h2>Regenerating this</h2>
       <span class="tag">OpenSCAD 2021.01</span>
     </div>
-    <pre class="cmd"><b>openscad -o stand.3mf stand.scad</b>
+    <pre class="cmd"><b>python verify.py</b>
+   ten pass/fail checks — run this after ANY change to the seat or stance
+
+<b>./slice.sh</b>
+   re-slice for the K1 Max and bounds-check the G-code it produces
+
+<b>openscad -o stand.3mf stand.scad</b>
    export the printable body — 3MF is what to load in the slicer
 
 <b>python print_check.py</b>

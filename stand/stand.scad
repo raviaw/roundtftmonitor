@@ -129,8 +129,12 @@ module place(){ translate([0,0,place_z]) rotate([90+tilt,0,0]) children(); }
 
 // stub biting into the ring's upper wall, held clear of the pocket bore so it
 // survives seat_cuts() and never fouls the shell going in
+// Inset from both ring faces on purpose. Flush at z=0 makes the stub's front
+// face coplanar with the ring's, and coplanar faces meet in non-manifold edges
+// -- four of them, at the top of the leg. Slicers mostly paper over that; the
+// fix costs nothing and keeps the mesh clean.
 module neck(){
-  translate([-leg_w/2, bore/2 + 0.4, 0]) cube([leg_w, 4.5, ring_d]);
+  translate([-leg_w/2, bore/2 + 0.4, 0.6]) cube([leg_w, 4.5, ring_d - 1.2]);
 }
 
 // base plate (rearward). rrect() already builds up from z=0, so this sits ON
