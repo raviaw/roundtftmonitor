@@ -12,11 +12,25 @@
 //
 // Units: mm.  Viewer is at +Y; screen faces +Y. Support & base extend to -Y.
 
+/* ---------- published specs for a stock ESP32-2424S012C ----------
+   Fixed by the part, not measurable off one unit. Use them to sanity-check any
+   caliper reading before it becomes geometry.
+     bare PCB          38.5 x 37.0 mm
+     active display    32.4 mm dia      <- cannot vary, it is the 1.28" panel
+     LCD panel outline ~35.6 x 38.1 mm
+     cased diameter    "about 42 mm" (CNX Software) -- see the NOTE below     */
+active_d    = 32.4;
+
 /* ---------- fit parameters (measured off the shell) ---------- */
+// NOTE: the only published cased diameter is ~42 mm, while this unit measured
+// 45 mm at the widest and 42 mm across the glossy front. Those reconcile if 45
+// is the equator and 42 the front face -- but if the true widest is 42, the
+// 43 mm lip bore is LARGER than the shell and it drops straight through the
+// front of the ring. Gauge it: set calipers to `aperture` and try to pass the
+// shell through. It must NOT fit.
 disc_d      = 45;    // shell diameter at its widest -- the equator
 disc_t      = 11;    // shell thickness front-to-back
-glass_d     = 42;    // the black glass. Only 1.5 mm of plastic rim outside it,
-                     // which is the entire ledge the lip has to land on.
+glass_d     = 42;    // outermost glossy front area the lip must not sit on
 
 /* ---------- seat ---------- */
 // The lip bore must clear the glass and still catch the rim, and there is only
@@ -45,6 +59,10 @@ assert(aperture < disc_d,
        "aperture is wider than the shell -- the lip would not catch it at all");
 assert(disc_t > ring_d,
        "shell is shallower than the ring -- it would sink in with no edge to grip");
+// active_d is the one dimension that cannot vary between units, so it makes the
+// only backstop that survives a bad caliper reading on everything else.
+assert(aperture > active_d + 3,
+       "lip is closing on the 32.4 mm active area -- a measurement is wrong");
 
 /* ---------- USB-C on the rim ---------- */
 // The port exits SIDEWAYS, not downward: a right-angle plug needs ~10 mm of

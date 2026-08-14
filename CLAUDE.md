@@ -81,6 +81,13 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
   43.0 = 0.5 mm clear of the glass + 1.0 mm of ledge. Holes print undersize, so
   the glass side keeps the clearance. `stand.scad` **asserts**
   `glass_d < aperture < disc_d` and `disc_t > ring_d` — keep those.
+- Stock **ESP32-2424S012C** published specs (hold caliper readings against these):
+  bare PCB **38.5 x 37.0**, active display **32.4 dia** (CANNOT vary), panel
+  outline ~35.6 x 38.1, cased dia **"about 42"** (CNX). The 42 mm glossy front is
+  NOT the LCD -- the panel is only ~35.6, so its outer mm are case plastic.
+- **Unresolved**: published cased dia ~42 vs measured 45 (equator) / 42 (front
+  face). If the true widest is 42, the 43 mm lip bore exceeds the shell and it
+  falls through. Gauge: calipers at 43.0 must NOT pass the shell.
 - Seat = straight bore + front lip, NOT a cone: a cone's grip depends on the
   shell's rim curvature, which can't be measured off a photo. USB-C exits
   **sideways** (`port_angle`, default 90 = viewer's left) — a right-angle plug

@@ -219,3 +219,40 @@ Checks that came back clean:
   in-plane load is carried at the bottom (0°). Bearing arc untouched.
 - **Base floor** under the pocket scoop bottoms out at 1.14 mm — 6 layers.
 - **Mesh** watertight, single body.
+
+## Cross-check against the published specs
+
+The unit is a stock **ESP32-2424S012C**, so the figures that come from the part
+rather than from calipers are worth holding the design against:
+
+| | | |
+|---|---|---|
+| Bare PCB | 38.5 × 37.0 mm | [espboards](https://www.espboards.dev/esp32/cyd-esp32-2424s012/) |
+| **Active display** | **Φ32.4 mm** | cannot vary — it is the 1.28" panel |
+| LCD panel outline | ~35.6 × 38.1 mm | standard GC9A01 1.28" module |
+| Cased diameter | "about 42 mm ∅" | [CNX Software](https://www.cnx-software.com/2024/08/06/arduino-and-lvgl-compatible-esp32-c3-board-features-a-1-28-inch-round-touchscreen-display-fully-housed-in-a-case/) |
+
+Two useful consequences:
+
+**`active_d` = 32.4 is the one dimension that cannot be mismeasured**, so it
+makes the backstop that survives a bad reading on everything else. The render
+now asserts `aperture > active_d + 3`.
+
+**The 42 mm glossy front is not the LCD.** The panel outline is only ~35.6 mm,
+so the outer few millimetres of that glossy disc are case, not screen. If it
+turns out to be *flat* case plastic rather than a domed lens, `aperture` could
+drop to ~38 and the ledge would go from 1.0 mm to about 3.5 mm — a much better
+grip. Worth a look at the front face before committing.
+
+### ⚠️ The one conflict, and how to settle it
+The only published cased diameter is **~42 mm**, but this unit measured **45 mm**
+at its widest and **42 mm** across the glossy front. Those reconcile if 45 is the
+equator and 42 the front face — consistent with the rounded pebble profile.
+
+But if the true widest is 42, then the 43 mm lip bore is *larger than the shell*
+and the display drops straight through the front of the ring.
+
+**Go/no-go, five seconds:** set calipers to **43.0 mm** and try to pass the shell
+through.
+- **Jams** → 45 is right, print it.
+- **Passes** → the 45 reading was wrong and the design needs refitting.
