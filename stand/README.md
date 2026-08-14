@@ -6,8 +6,10 @@ No off-the-shelf round-board tilt stand exists, so this is a parametric design.
 
 ## Files
 - `stand.scad` — parametric source (edit + re-render in OpenSCAD)
-- `stand.3mf` — **load this to print**; 3MF carries units so it imports at
-  the right size and orientation
+- `gcode/stand_K1Max_PLA_0.20mm.gcode` — **sliced and ready to print**
+- `stand.3mf` — the model, if you'd rather slice it yourself; 3MF carries units
+  so it imports at the right size and orientation
+- `slice.sh` + `slicer/*.json` — how that G-code is produced
 - `stand.stl` — same mesh, for anything that wants STL
 - `print_check.py` — build-volume fit, overhang and bed-contact numbers
 - `preview_iso.png` / `preview_side.png` / `preview_front.png` — renders
@@ -256,3 +258,30 @@ and the display drops straight through the front of the ring.
 through.
 - **Jams** → 45 is right, print it.
 - **Passes** → the 45 reading was wrong and the design needs refitting.
+
+## The sliced G-code
+
+`gcode/stand_K1Max_PLA_0.20mm.gcode` — produced with OrcaSlicer 2.4.2 using
+Creality's own **K1 Max (0.4 nozzle)** machine profile, so the start macro is the
+real Klipper one (`START_PRINT EXTRUDER_TEMP=200 BED_TEMP=45`) rather than
+something hand-written.
+
+| | |
+|---|---|
+| Time | **59 m 17 s** |
+| Material | **24.8 g** PLA (20.0 cm³) |
+| Layers | 253, 0.20 mm, top at 50.80 mm |
+| Walls / infill | 3 / 40 % |
+| Supports / brim | none / none |
+| Bed | Textured PEI, 45 °C · nozzle 200 °C |
+
+Changed from Creality's stock *0.20mm Standard*: walls 2→3, infill 15→40 %
+(mass, so it doesn't skid when you swipe it), brim auto→none, and the bed type
+from **Cool Plate to Textured PEI** — the CLI defaults to Cool Plate, which
+silently gives you a 35 °C bed on a machine that ships with textured PEI.
+
+Verified rather than assumed: all 61 323 moves fall inside 0–300 mm in X, Y and
+Z, and the part is centred on the bed at 150, 150.
+
+Re-slice with `./slice.sh` (needs OrcaSlicer portable at `E:\dev\orcaslicer`,
+override with `ORCA=`).
