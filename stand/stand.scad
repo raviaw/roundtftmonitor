@@ -24,7 +24,12 @@ glass_d     = 42;    // the black glass. Only 1.5 mm of plastic rim outside it,
 // 1.0 mm of ledge under the shell. Holes print undersize on FDM, so the 0.5 mm
 // glass clearance is the half that must not be spent.
 aperture    = 43.0;  // front lip bore. MUST stay between glass_d and disc_d
-fit         = 0.5;   // diametral clearance on the bore
+// Diametral clearance on the bore. 0.5 was carried over from when the shell was
+// thought to be 40.5; on a 45 mm bore it dies at the pessimistic end of FDM hole
+// shrink -- 0.5 mm of shrink leaves zero and the shell simply will not go in.
+// 0.8 still enters with 0.3 mm to spare, and the 0.4 mm of slop it allows only
+// eats into a 1.0 mm ledge.
+fit         = 0.8;
 front_thick = 1.8;   // thickness of the front lip
 ring_d      = 10.0;  // ring depth. < disc_t so the back stands proud to grip
 wall        = 2.8;   // ring wall thickness
@@ -137,8 +142,14 @@ module stand(){
 show_pebble = false;   // draw a stand-in for the shell, seated in the cone
 section     = false;   // slice the model in half to see the seat
 
-// stand-in for the shell: disc_d at the equator, disc_t thick, rounded rim
-rim_r = 3.5;   // eyeballed off the photos -- affects the CHECK, not the part
+// stand-in for the shell: disc_d at the equator, disc_t thick, rounded rim.
+//
+// rim_r is DERIVED, not eyeballed. The glass sits on the front face, so the
+// face must be at least glass_d across; the widest point is disc_d; therefore
+// the edge cannot pull in by more than half the difference. Guessing 3.5 here
+// implied a 38 mm front face carrying a 42 mm glass, which is impossible -- and
+// every interference check ran against that impossible shape.
+rim_r = (disc_d - glass_d) / 2;
 module pebble(){
   rotate_extrude($fn=120)
     hull(){

@@ -46,7 +46,7 @@ with a back leg. Single solid piece, prints flat on the base.
 The seat is a **straight bore plus a front lip**. The shell drops in from the
 **back** and stops when its face meets the lip; the backward lean means gravity
 presses it onto that lip, so nothing needs to snap or clamp and it still lifts
-straight out. About **2 mm of the shell stands proud at the back**, which is what
+straight out. About **2.7 mm of the shell stands proud at the back**, which is what
 you push on to pop it out.
 
 > A conical seat was tried first and abandoned: where a cone grips depends on how
@@ -64,7 +64,8 @@ Set `port_angle` to move it: `0` = bottom, **`90` = viewer's left (default)**,
 ## Size
 - Footprint **58 × 68 mm** (70 mm overall — the ring's lip overhangs the base
   front by ~1.7 mm), height **~51 mm**
-- ~28.7 cm³ (~36 g PLA solid; well under that at normal infill)
+- ~28.8 cm³ (~36 g PLA solid, ~12 g at 3 walls / 15 % infill)
+- **Watertight**: 0 naked edges, 0 non-manifold edges
 
 ## The tightest fit in the part
 There is only **1.5 mm** of plastic rim between the glass (⌀42) and the shell's
@@ -77,8 +78,14 @@ splits that budget:
 | **Front lip bore** | **43.0** | leaves **1.0 mm** of ledge under the shell |
 | Black glass | 42.0 | lip stops **0.5 mm** short of it |
 
-Holes print undersize on FDM, so the glass side gets the clearance and the ledge
-absorbs the error: a lip 0.3 mm tight still holds, a lip on the glass rocks.
+FDM prints holes undersize, which moves the lip **toward the glass** and away
+from losing grip. So the 0.5 mm is specifically a shrink budget — the ledge only
+ever gains. At a pessimistic 0.5 mm of shrink the lip still clears the glass by
+0.25 mm and the ledge grows to 1.25 mm.
+
+And the failure is bounded: the **active display is only ⌀32.4**, so the lip sits
+**5.3 mm clear of it on radius**. A lip that lands wrong makes the shell rock —
+it cannot cover the screen.
 
 `stand.scad` **asserts** `glass_d < aperture < disc_d` and `disc_t > ring_d`, so
 a bad edit fails the render instead of quietly printing a cradle that sits on
@@ -180,3 +187,35 @@ heat-soaks and you get heat creep in the extruder.
 The base makes full contact — 3902 mm², the entire footprint. That was not true
 until the base-plate bug above was fixed, when the part balanced on 144 mm² and
 genuinely did need a brim.
+
+## Adversarial review — what a second pass found
+
+Run after every dimension was confirmed. Two faults, one usability limit.
+
+**`rim_r` contradicted the measurements.** The fit-check stand-in used an
+eyeballed 3.5 mm edge radius, which implies a 38 mm front face — too small to
+carry a 42 mm glass. Every interference check had been running against a shape
+that cannot exist. `rim_r` is now *derived* as `(disc_d - glass_d)/2` = 1.5 mm.
+The seat still measures 0.00 mm³ of interference, and the shell actually stands
+**2.71 mm** proud rather than the 1.75 previously quoted.
+
+**`fit` 0.5 was left over from the 40.5 mm era.** On a 45 mm bore it dies at the
+pessimistic end of FDM hole shrink: 0.5 mm of shrink leaves *zero* clearance and
+the shell will not go in at all. Now **0.8**, which still enters with 0.3 mm to
+spare, and the extra 0.4 mm of slop only eats a 1.0 mm ledge.
+
+**It will slide when you swipe it.** At 3 walls / 15 % infill the part is ~12 g,
+~42 g with the display in it. Bare PLA on a desk skids at about **31 g** of
+finger force; a deliberate swipe is 100–300 g. Silicone feet raise it to ~163 g,
+and printing at 40–50 % infill roughly doubles the part's mass again. This is
+mass, not geometry — no shape change fixes it.
+
+Checks that came back clean:
+- **Tipping** — pressing the screen cannot tip it backwards at *any* force. At
+  38° the push's downward component acts on a 54 mm arm to the back edge while
+  the backward component only has a 28.9 mm arm; it presses the stand down.
+- **Screen clearance** — 5.3 mm radial between the lip and the active area.
+- **The USB-C notch** removes 43.7° of ring, but at the side (90°), while the
+  in-plane load is carried at the bottom (0°). Bearing arc untouched.
+- **Base floor** under the pocket scoop bottoms out at 1.14 mm — 6 layers.
+- **Mesh** watertight, single body.

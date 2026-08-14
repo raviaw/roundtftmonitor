@@ -90,6 +90,17 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
 - Verify seat changes numerically, not by eye: intersect the model with the
   `seated_pebble()` stand-in and measure the overlap volume (want **0**). Cut the
   seat **after** unioning base+leg, or the base slab fills the pocket.
+- **`rim_r` is derived, not eyeballed** — `(disc_d - glass_d)/2`. The glass sits
+  on the front face, so the face must be >= `glass_d`; a guessed 3.5 implied a
+  38 mm face under a 42 mm glass and every interference check ran against an
+  impossible shape. Sanity-check any shell stand-in against the measurements.
+- `fit` is **0.8** on the 45 mm bore: FDM shrinks holes, and 0.5 left zero
+  clearance at 0.5 mm of shrink (shell won't enter). Shrink moves the lip
+  *toward* the glass, so the 0.5 mm glass gap is the shrink budget; the ledge
+  only gains.
+- Known limit: at 15% infill the part is ~12 g (~42 g with the display) and
+  **slides at ~31 g of finger force** — a swipe is 100-300 g. Feet or more
+  infill, not geometry.
 - **A `z=0` bounding box does NOT mean it sits flat.** The base plate floated
   2.25 mm for months (lifted by `base_t/2` though `rrect()` already builds up
   from 0) with the part balanced on one small bar — bbox still read 0. Check by

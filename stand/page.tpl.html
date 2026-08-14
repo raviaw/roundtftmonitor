@@ -309,7 +309,7 @@
       <div class="tb-cell"><span class="tb-k">Source</span><span class="tb-v">stand.scad</span></div>
       <div class="tb-cell"><span class="tb-k">Units</span><span class="tb-v">mm</span></div>
       <div class="tb-cell"><span class="tb-k">Envelope</span><span class="tb-v">58 × 70 × 50.6</span></div>
-      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">28 728 mm³</span></div>
+      <div class="tb-cell"><span class="tb-k">Volume</span><span class="tb-v">28 819 mm³</span></div>
       <div class="tb-cell"><span class="tb-k">Material</span><span class="tb-v">PLA / PETG</span></div>
       <div class="tb-cell"><span class="tb-k">Lean</span><span class="tb-v">38°</span></div>
       <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">45 mm shell</span></div>
@@ -340,7 +340,7 @@
           The ring wall in section with the display shell shown seated in it.
           The front lip narrows the opening to 43.0 mm, stopping the 45.0 mm
           shell, which is held in a 45.5 mm bore 10 mm deep and stands about
-          1.75 mm proud at the back.
+          2.7 mm proud at the back.
         </desc>
 
         <defs>
@@ -441,7 +441,7 @@
             <text transform="translate(709,151) rotate(-90)" text-anchor="middle">10.0</text>
             <text x="751" y="70" font-size="12.5">1.8 front lip</text>
             <text x="751" y="138" font-size="12.5">2.8 wall</text>
-            <text x="751" y="246" font-size="12.5">≈1.75 proud</text>
+            <text x="751" y="246" font-size="12.5">≈2.7 proud</text>
             <text x="751" y="262" font-size="11" fill="var(--ink-3)">grip to remove</text>
           </g>
 
@@ -481,12 +481,12 @@
     </p>
 
     <p class="prose">
-      Holes print undersize on FDM, which is why the glass side gets the
-      clearance and the ledge absorbs the error — a lip that comes out 0.3 mm
-      tight still holds, a lip that creeps onto the glass makes the shell rock.
-      <code>stand.scad</code> asserts the bore stays between the two, so the
-      render fails rather than quietly producing a cradle that sits on the
-      screen.
+      FDM prints holes undersize, which moves the lip <em>toward</em> the glass
+      and away from losing grip — so that 0.5 mm is a shrink budget, and the
+      ledge only ever gains. Even at a pessimistic 0.5 mm of shrink the lip
+      still clears the glass by 0.25 mm. And the failure is bounded: the active
+      display is only ⌀32.4, leaving <b>5.3 mm of radial margin</b>, so a lip
+      that lands wrong makes the shell rock — it cannot cover the screen.
     </p>
 
     <div class="drawing">
@@ -736,12 +736,12 @@
             <td><span class="chip measured">Derived</span></td>
           </tr>
           <tr>
-            <td>fit</td><td class="num">0.5 mm</td>
+            <td>fit</td><td class="num">0.8 mm</td>
             <td class="what">Diametral clearance on the bore</td>
             <td><span class="chip derived">Design</span></td>
           </tr>
           <tr>
-            <td>bore</td><td class="num">45.5 mm</td>
+            <td>bore</td><td class="num">45.8 mm</td>
             <td class="what">Pocket bore, disc_d + fit</td>
             <td><span class="chip derived">Derived</span></td>
           </tr>
@@ -821,8 +821,8 @@
       <div class="check">
         <div class="val">0.00</div>
         <div class="lbl">mm³ interference</div>
-        <div class="note">Pure tangential contact. No clash with the ring, the
-          leg, or the base.</div>
+        <div class="note">Pure tangential contact, re-run against a corrected
+          shell model. No clash with the ring, leg or base.</div>
       </div>
       <div class="check">
         <div class="val">2</div>
@@ -838,7 +838,7 @@
           plate was floating.</div>
       </div>
       <div class="check">
-        <div class="val">≈1.75</div>
+        <div class="val">≈2.7</div>
         <div class="lbl">mm shell stands proud</div>
         <div class="note">Enough of the back edge to grip and push the shell
           back out.</div>
@@ -977,6 +977,67 @@
           capping the outer wall to about 30% speed, fixes it. Printing PLA in an
           enclosed machine, leave the door and top open so the chamber doesn't
           heat-soak the extruder.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REVIEW ================= -->
+  <section>
+    <div class="head">
+      <h2>Adversarial review</h2>
+      <span class="tag">Second pass, after every dimension was confirmed</span>
+    </div>
+
+    <p class="prose">
+      Run deliberately looking for reasons this would fail. Two faults, one
+      limit that no shape change can fix.
+    </p>
+
+    <div class="notes">
+      <div class="note-item">
+        <h3>rim_r contradicted the measurements</h3>
+        <p>
+          The fit-check stand-in used an eyeballed 3.5 mm edge radius. That
+          implies a 38 mm front face — too small to carry a 42 mm glass, so
+          every interference check had been running against a shape that cannot
+          exist. <code>rim_r</code> is now derived as
+          <code>(disc_d − glass_d)/2</code> = 1.5 mm. The seat still measures
+          0.00 mm³, and the shell stands <b>2.71 mm</b> proud rather than the
+          1.75 previously quoted.
+        </p>
+      </div>
+      <div class="note-item">
+        <h3>The bore clearance was left over from the wrong size</h3>
+        <p>
+          <code>fit</code> = 0.5 dated from when the shell was thought to be
+          40.5 mm. On a 45 mm bore it dies at the pessimistic end of FDM hole
+          shrink — 0.5 mm of shrink leaves <em>zero</em> clearance and the shell
+          will not go in at all. Now 0.8, which still enters with 0.3 mm to
+          spare, and the extra slop only eats a 1.0 mm ledge.
+        </p>
+      </div>
+      <div class="note-item">
+        <h3>It will slide when you swipe it</h3>
+        <p>
+          At 3 walls and 15% infill the part is ~12 g, ~42 g with the display in
+          it. Bare PLA on a desk skids at about <b>31 g</b> of finger force and a
+          deliberate swipe is 100–300 g. Silicone feet raise that to ~163 g, and
+          printing at 40–50% infill roughly doubles the part's mass again. This
+          is mass, not geometry — no change to the shape fixes it.
+        </p>
+      </div>
+      <div class="note-item">
+        <h3>Came back clean</h3>
+        <p>
+          <b>Tipping</b> — pressing the screen cannot tip it backwards at any
+          force: at 38° the push's downward component acts on a 54 mm arm to the
+          back edge while the backward component has only 28.9 mm, so it presses
+          the stand down. <b>Screen clearance</b> — 5.3 mm radial from lip to
+          active area. <b>The USB-C notch</b> takes 43.7° of ring, but at the
+          side, while the in-plane load is carried at the bottom. <b>Base floor</b>
+          under the pocket scoop bottoms out at 1.14 mm, six layers.
+          <b>Mesh</b> watertight: zero naked and zero non-manifold edges.
         </p>
       </div>
     </div>
