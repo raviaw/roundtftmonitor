@@ -5,6 +5,10 @@ firmware/**/build/
 __pycache__/
 *.pyc
 
+# OrcaSlicer CLI drops this in the cwd (headless has no OpenGL, so it skips
+# thumbnail rendering and says so). Nothing to keep.
+00000.log
+
 # os cruft
 Thumbs.db
 .DS_Store

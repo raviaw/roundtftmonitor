@@ -904,12 +904,12 @@
       <div class="note-item">
         <h3>Printing</h3>
         <p>
-          Print base-down as oriented, in PLA or PETG, 3 perimeters and about
-          15% infill. The underside of the leaning cradle is a mild overhang —
-          enable light supports touching the build plate only if your slicer
-          flags it; at 38° the underside is a real overhang, though still inside the
-          45° most printers manage unsupported. A brim helps the small
-          footprint stay put.
+          Print base-down as oriented, in PLA or PETG, 3 perimeters and 40%
+          infill — the infill is for mass, so the finished stand doesn't skid
+          when you swipe the screen. The underside of the leaning cradle is a
+          mild overhang: at 38° it is a real overhang but still inside the 45°
+          most printers manage unsupported. Print it with a brim and a 60° bed;
+          the first attempt came off the plate without them.
         </p>
       </div>
     </div>
@@ -941,13 +941,26 @@
               <td class="what">The 1.8 mm front lip is 9 layers</td></tr>
           <tr><td>Walls</td><td class="num">3</td>
               <td class="what">The 2.8 mm ring wall is 7 extrusions wide</td></tr>
-          <tr><td>Infill</td><td class="num">~15%</td>
-              <td class="what">Nothing here is structural</td></tr>
+          <tr><td>Infill</td><td class="num">40%</td>
+              <td class="what">Nothing here is structural — this is for mass, so
+                it doesn't skid when you swipe it</td></tr>
           <tr><td>Supports</td><td class="num"><span class="chip measured">Off</span></td>
               <td class="what">46 mm² of the part leans past 55°, all of it one
                 forgiving feature</td></tr>
-          <tr><td>Brim</td><td class="num"><span class="chip measured">Not needed</span></td>
-              <td class="what">3902 mm² of bed contact — the full footprint</td></tr>
+          <tr class="flag"><td>Brim</td>
+              <td class="num"><span class="chip verify">8 mm, outer</span></td>
+              <td class="what">3902 mm² of bed contact was not enough — it let go
+                mid-print</td></tr>
+          <tr class="flag"><td>Bed</td>
+              <td class="num"><span class="chip verify">60 °C</span></td>
+              <td class="what">Textured PEI. The generic PLA profile's 45 °C is
+                the real reason it came unstuck</td></tr>
+          <tr><td>Nozzle</td><td class="num">215 / 210 °C</td>
+              <td class="what">Hotter first layer welds it to the plate</td></tr>
+          <tr><td>First layer</td><td class="num">0.25 mm @ 30 mm/s</td>
+              <td class="what">Thicker and slower: time to squash in, not skid</td></tr>
+          <tr><td>Fan</td><td class="num">off for 3 layers</td>
+              <td class="what">100% cooling at layer 2 peels the corners</td></tr>
           <tr class="flag"><td>Min layer time</td>
               <td class="num"><span class="chip verify">8–10 s</span></td>
               <td class="what">The one setting that actually matters here</td></tr>
@@ -965,6 +978,27 @@
           facing nearly straight down. It will droop a little, which costs
           nothing — the chamfer exists only to let the shell start into the bore.
           Supports would scar the seat instead.
+        </p>
+      </div>
+      <div class="note-item">
+        <h3>It came off the bed, and the brim was only half of it</h3>
+        <p>
+          The first print let go mid-job. The filament profile inherits the
+          <em>generic</em> PLA library, which runs textured PEI at
+          <b>45 °C</b> with a 200 °C nozzle — Creality's own PLA profile says
+          60/220. A 45 °C plate barely holds PLA, and with cooling off for only
+          one layer the part fan hits 100% on layer 2 and peels the corners
+          while the plate is still weak. Nothing in the slicer's interface
+          flags this; it is visible only in the G-code.
+        </p>
+        <p>
+          Asking for a brim is also not the same as getting one:
+          <code>outer_brim_only</code> is not a value OrcaSlicer 2.4.2 accepts,
+          so it fell back to <code>auto_brim</code>, which decided this part
+          needed none — and the re-sliced file came out identical to the one
+          that failed. The spelling it wants is <code>outer_only</code>. The
+          check now measures the brim out of the toolpaths rather than trusting
+          the setting.
         </p>
       </div>
       <div class="note-item">

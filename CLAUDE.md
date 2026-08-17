@@ -100,6 +100,20 @@ PC + Claude usage monitor on a round ESP32 display. Full design notes in
 - Cut the seat **after** unioning base+leg, or the base slab fills the pocket.
 - Slice with `stand/slice.sh` (OrcaSlicer portable at `E:\dev\orcaslicer`); it
   bounds-checks the G-code it emits. Don't hand-write G-code for the K1 Max.
+- **Bed adhesion (first print let go, 2026-08-17).** `filament.json` inherits the
+  *generic* PLA library, which runs textured PEI at **45 °C / 200 °C** — Creality's
+  own PLA is 60/220. That, not the missing brim, is why it unstuck; the fan hitting
+  100% at layer 2 finished the job. Now 60 °C bed, 215/210 nozzle,
+  `close_fan_the_first_x_layers` 3, first layer 0.25 mm at 30 mm/s, and an
+  **8 mm `outer_only` brim** at gap 0. Verify in the G-code, never the UI.
+- **`outer_brim_only` is not a valid OrcaSlicer 2.4.2 value** — it silently falls back
+  to `auto_brim`, which then decides this part needs no brim. It's **`outer_only`**.
+  `gcode_check.py` now measures the brim out of the `;TYPE:Brim` toolpaths (and parses
+  `G2/G3`, which arc fitting means it was ignoring entirely).
+- `stand/stand_K1Max_project.3mf` is the **profile in portable form** (model + all
+  settings in `Metadata/project_settings.config`) — Creality Print / Creality Opus /
+  Orca / Bambu are all the same slicer's forks and open it ready to slice.
+  `stand.3mf` is plain geometry; don't mix them up. `slice.sh` regenerates both.
 - **`rim_r` is derived, not eyeballed** — `(disc_d - glass_d)/2`. The glass sits
   on the front face, so the face must be >= `glass_d`; a guessed 3.5 implied a
   38 mm face under a 42 mm glass and every interference check ran against an

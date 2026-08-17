@@ -7,12 +7,14 @@ No off-the-shelf round-board tilt stand exists, so this is a parametric design.
 ## Files
 - `stand.scad` — parametric source (edit + re-render in OpenSCAD)
 - `gcode/stand_K1Max_PLA_0.20mm.gcode` — **sliced and ready to print**
-- `stand.3mf` — the model, if you'd rather slice it yourself; 3MF carries units
-  so it imports at the right size and orientation
+- `stand_K1Max_project.3mf` — **the profile, portable**: model + every setting,
+  opens ready to slice in Creality Print / Creality Opus / OrcaSlicer
+- `stand.3mf` — plain geometry, no settings; 3MF carries units so it imports at
+  the right size and orientation
 - `slice.sh` + `slicer/*.json` — how that G-code is produced
 - `stand.stl` — same mesh, for anything that wants STL
 - `verify.py` + `verify.scad` — **run after any change**; ten pass/fail checks
-- `gcode_check.py` — bounds-checks sliced G-code against the build volume
+- `gcode_check.py` — bounds-checks sliced G-code and proves the brim is real
 - `print_check.py` — build-volume fit, overhang and bed-contact numbers
 - `preview_iso.png` / `preview_side.png` / `preview_front.png` — renders
 - `fit_check.png` — the shell drawn seated in the cradle (see below)
@@ -265,28 +267,82 @@ through.
 
 `gcode/stand_K1Max_PLA_0.20mm.gcode` — produced with OrcaSlicer 2.4.2 using
 Creality's own **K1 Max (0.4 nozzle)** machine profile, so the start macro is the
-real Klipper one (`START_PRINT EXTRUDER_TEMP=200 BED_TEMP=45`) rather than
+real Klipper one (`START_PRINT EXTRUDER_TEMP=215 BED_TEMP=60`) rather than
 something hand-written.
 
 | | |
 |---|---|
-| Time | **59 m 0 s** |
-| Material | **24.7 g** PLA |
-| Layers | 251, 0.20 mm, top at 50.60 mm |
+| Time | **1 h 01 m 41 s** |
+| Material | **25.1 g** PLA |
+| Layers | 251, 0.20 mm (first 0.25), top at 50.65 mm |
 | Walls / infill | 3 / 40 % |
-| Supports / brim | none / none |
-| Bed | Textured PEI, 45 °C · nozzle 200 °C |
+| Supports / brim | none / **8 mm outer brim, 0 gap** |
+| Bed | Textured PEI, **60 °C** · nozzle **215 / 210 °C** |
 
 Changed from Creality's stock *0.20mm Standard*: walls 2→3, infill 15→40 %
-(mass, so it doesn't skid when you swipe it), brim auto→none, and the bed type
-from **Cool Plate to Textured PEI** — the CLI defaults to Cool Plate, which
-silently gives you a 35 °C bed on a machine that ships with textured PEI.
+(mass, so it doesn't skid when you swipe it), and the bed type from **Cool Plate
+to Textured PEI** — the CLI defaults to Cool Plate, which silently gives you a
+35 °C bed on a machine that ships with textured PEI.
 
-Verified rather than assumed: all 61 819 moves fall inside 0–300 mm in X, Y and
-Z, centred on the bed at 150, 150. `slice.sh` re-runs that check every time.
+Verified rather than assumed: all 69 102 moves fall inside 0–300 mm in X, Y and
+Z, centred on the bed at 150, 150, and the brim is really in the toolpaths.
+`slice.sh` re-runs both checks every time.
 
 Re-slice with `./slice.sh` (needs OrcaSlicer portable at `E:\dev\orcaslicer`,
 override with `ORCA=`).
+
+### It came off the bed — what changed (2026-08-17)
+
+The first print let go mid-job. The missing brim was the visible half; the
+temperatures were the real half.
+
+**The bed was running at 45 °C and the nozzle at 200 °C.** `filament.json`
+inherits the *generic* PLA library profile, which puts textured PEI at 45 °C —
+Creality's own PLA profile says 60 °C / 220 °C. A 45 °C plate barely holds PLA,
+and with `close_fan_the_first_x_layers` at 1 the K1's part fan hits 100 % on
+layer 2 and peels the corners while the plate is still weak. Nothing in the
+slicer UI flags this; it is only visible in the G-code.
+
+| | was | now |
+|---|---|---|
+| `brim_type` / width / gap | `no_brim` | `outer_only` / 8 mm / 0 |
+| `textured_plate_temp` | 45 °C | **60 °C** |
+| `nozzle_temperature` (first / rest) | 200 / 200 | **215 / 210** |
+| `initial_layer_print_height` | 0.20 | 0.25 |
+| `initial_layer_speed` | 60 mm/s | 30 mm/s |
+| `initial_layer_infill_speed` | 60 mm/s | 40 mm/s |
+| `close_fan_the_first_x_layers` | 1 | 3 |
+
+Cost: about 3 minutes and 0.4 g.
+
+**`outer_brim_only` is not a value OrcaSlicer 2.4.2 accepts.** Setting it did
+not error — it fell back to `auto_brim`, auto_brim decided this part didn't need
+one, and the re-sliced file came out with no brim and an identical footprint.
+The settings comment in the G-code said `brim_type = auto_brim` and the
+toolpaths said nothing at all. The value it wants is **`outer_only`**.
+
+That is why `gcode_check.py` now measures the brim out of the toolpaths — it
+finds the `;TYPE:Brim` block and checks it stands at least 0.6 × `brim_width`
+proud of the first layer on every side — instead of trusting the setting.
+(It also parses `G2`/`G3` now. Arc fitting is on, so a large share of this part's
+outline was never bounds-checked at all.)
+
+## Slicing it yourself — Creality Print / Opus / Orca
+
+`stand_K1Max_project.3mf` is the profile in portable form: the model **plus every
+resolved setting** in `Metadata/project_settings.config`. Creality Print,
+Creality Opus, OrcaSlicer and Bambu Studio are all forks of the same slicer, so
+opening that file loads the geometry with all of the above already applied — no
+preset import, no vendor-folder juggling. Check the plate is Textured PEI and
+slice.
+
+Don't confuse it with `stand.3mf`, which is plain geometry and carries no
+settings.
+
+If you'd rather keep the profile around for other jobs, import
+`slicer/process.json` and `slicer/filament.json` through *File → Import →
+Import Configs*. And if the slicer disagrees with any of it, the sliced
+`gcode/*.gcode` needs no slicer at all — copy it to the printer.
 
 ## Verifying a change
 
